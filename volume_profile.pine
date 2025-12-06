@@ -164,53 +164,17 @@ if barstate.islast
         vahPrice = lo + vaHi * rowHeight + rowHeight / 2
         valPrice = lo + vaLo * rowHeight + rowHeight / 2
 
-        // Draw profile
+        // Calculate profile positions
         profileStartBar = bar_index + profileOffset
         startBar = bar_index - barsBack
         endBar = profileStartBar + profileWidth
 
-        if maxVol > 0
-            for r = 0 to actualRows - 1
-                v = array.get(vol, r)
-                if v > 0
-                    rowLo = lo + r * rowHeight
-                    rowHi = lo + (r + 1) * rowHeight
-                    rowMid = (rowLo + rowHi) / 2
+        // ========== SECONDARY PROFILE CALCULATION ==========
+        secondaryMaxVol = 0.0
+        combinedMaxVol = maxVol
 
-                    // Calculate width
-                    width = int((v / maxVol) * profileWidth)
-
-                    if width > 0
-                        x2 = profileStartBar + width
-
-                        // Determine color intensity
-                        intensity = int((v / maxVol) * 100)
-                        boxColor = color.new(profileColor, 100 - intensity)
-
-                        // Draw box
-                        b = box.new(profileStartBar, rowLo, x2, rowHi, border_color=color.new(profileColor, 50), bgcolor=boxColor, border_width=1, extend=extend.none)
-                        array.push(boxes, b)
-
-        // Draw POC
-        if showPOC
-            l = line.new(profileStartBar, pocPrice, endBar, pocPrice, color=pocColor, width=2, style=line.style_solid, extend=extend.none)
-            array.push(lines, l)
-            label.new(endBar, pocPrice, "POC", style=label.style_label_left, color=color.new(pocColor, 80), textcolor=pocColor, size=size.small)
-
-        // Draw VAH
-        if showVAH
-            l = line.new(profileStartBar, vahPrice, endBar, vahPrice, color=vahColor, width=1, style=line.style_dashed, extend=extend.none)
-            array.push(lines, l)
-            label.new(endBar, vahPrice, "VAH", style=label.style_label_left, color=color.new(vahColor, 80), textcolor=vahColor, size=size.small)
-
-        // Draw VAL
-        if showVAL
-            l = line.new(profileStartBar, valPrice, endBar, valPrice, color=valColor, width=1, style=line.style_dashed, extend=extend.none)
-            array.push(lines, l)
-            label.new(endBar, valPrice, "VAL", style=label.style_label_left, color=color.new(valColor, 80), textcolor=valColor, size=size.small)
-
-        // ========== SECONDARY PROFILE ==========
         if showSecondary
+            secondaryVol = array.new_float(actualRows, 0.0)
             // Calculate secondary lookback range
             secondaryBarsBack = 0
             if useSecondaryTimeRange
@@ -227,10 +191,7 @@ if barstate.islast
             else
                 secondaryBarsBack := math.min(secondaryLookback - 1, bar_index)
 
-            // Calculate secondary volume using SAME price range as primary
-            secondaryVol = array.new_float(actualRows, 0.0)
-
-            // Accumulate secondary volume
+            // Accumulate secondary volume using SAME price range as primary
             for i = 0 to secondaryBarsBack
                 barHi = high[i]
                 barLo = low[i]
@@ -254,31 +215,69 @@ if barstate.islast
                     array.set(secondaryVol, rowIdx, array.get(secondaryVol, rowIdx) + barVol)
 
             // Find max secondary volume
-            secondaryMaxVol = array.max(secondaryVol)
+            secondaryMaxVol := array.max(secondaryVol)
 
-            // Draw secondary profile
+            // Use COMBINED max volume for scaling both profiles
+            combinedMaxVol := math.max(maxVol, secondaryMaxVol)
+
+        // ========== DRAW PRIMARY PROFILE ==========
+        if combinedMaxVol > 0
+            for r = 0 to actualRows - 1
+                v = array.get(vol, r)
+                if v > 0
+                    rowLo = lo + r * rowHeight
+                    rowHi = lo + (r + 1) * rowHeight
+
+                    // Calculate width using COMBINED max volume for direct comparison with secondary
+                    width = int((v / combinedMaxVol) * profileWidth)
+
+                    if width > 0
+                        x2 = profileStartBar + width
+
+                        // Determine color intensity based on primary's own max
+                        intensity = int((v / maxVol) * 100)
+                        boxColor = color.new(profileColor, 100 - intensity)
+
+                        // Draw box
+                        b = box.new(profileStartBar, rowLo, x2, rowHi, border_color=color.new(profileColor, 30), bgcolor=boxColor, border_width=1, extend=extend.none)
+                        array.push(boxes, b)
+
+            // Draw POC, VAH, VAL lines for primary profile
+            if showPOC
+                pocLine = line.new(startBar, pocPrice, endBar, pocPrice, color=pocColor, width=2, style=line.style_solid)
+                array.push(lines, pocLine)
+
+            if showVAH
+                vahLine = line.new(startBar, vahPrice, endBar, vahPrice, color=vahColor, width=1, style=line.style_dashed)
+                array.push(lines, vahLine)
+
+            if showVAL
+                valLine = line.new(startBar, valPrice, endBar, valPrice, color=valColor, width=1, style=line.style_dashed)
+                array.push(lines, valLine)
+
+        // ========== DRAW SECONDARY PROFILE ==========
+        if showSecondary and combinedMaxVol > 0
             secondaryStartBar = profileStartBar + secondaryOffsetFromPrimary
 
-            if secondaryMaxVol > 0
-                for r = 0 to actualRows - 1
-                    v = array.get(secondaryVol, r)
-                    if v > 0
-                        rowLo = lo + r * rowHeight
-                        rowHi = lo + (r + 1) * rowHeight
+            for r = 0 to actualRows - 1
+                v = array.get(secondaryVol, r)
+                if v > 0
+                    rowLo = lo + r * rowHeight
+                    rowHi = lo + (r + 1) * rowHeight
 
-                        // Calculate width
-                        width = int((v / secondaryMaxVol) * secondaryWidth)
+                    // Calculate width using COMBINED max volume for direct comparison
+                    width = int((v / combinedMaxVol) * profileWidth)
 
-                        if width > 0
-                            x2 = secondaryStartBar + width
+                    if width > 0
+                        x2 = secondaryStartBar + width
 
-                            // Determine color intensity
-                            intensity = int((v / secondaryMaxVol) * 100)
-                            boxColor = color.new(secondaryColor, 100 - intensity)
+                        // Determine color intensity based on secondary's own max
+                        intensity = int((v / secondaryMaxVol) * 100)
+                        boxColor = color.new(secondaryColor, 100 - intensity)
 
-                            // Draw box
-                            b = box.new(secondaryStartBar, rowLo, x2, rowHi, border_color=color.new(secondaryColor, 30), bgcolor=boxColor, border_width=1, extend=extend.none)
-                            array.push(secondaryBoxes, b)
+                        // Draw box
+                        b = box.new(secondaryStartBar, rowLo, x2, rowHi, border_color=color.new(secondaryColor, 30), bgcolor=boxColor, border_width=1, extend=extend.none)
+                        array.push(secondaryBoxes, b)
 
     // Debug info
     if showDebug
