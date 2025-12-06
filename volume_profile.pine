@@ -209,76 +209,76 @@ if barstate.islast
             array.push(lines, l)
             label.new(endBar, valPrice, "VAL", style=label.style_label_left, color=color.new(valColor, 80), textcolor=valColor, size=size.small)
 
-    // ========== SECONDARY PROFILE ==========
-    if showSecondary and rowHeight > 0
-        // Calculate secondary lookback range
-        secondaryBarsBack = 0
-        if useSecondaryTimeRange
-            // Find the furthest bar back where time >= secondaryStartTime
-            secondaryStartBarIndex = 0
-            maxSecondarySearch = math.min(bar_index, 4999)
-            for i = 0 to maxSecondarySearch
-                if time[i] >= secondaryStartTime
-                    secondaryStartBarIndex := i
-            secondaryBarsBack := secondaryStartBarIndex
-            if secondaryBarsBack <= 0
-                secondaryBarsBack := math.min(secondaryLookback - 1, bar_index)
-            secondaryBarsBack := math.min(secondaryBarsBack, 4999)
-        else
-            secondaryBarsBack := math.min(secondaryLookback - 1, bar_index)
-
-        // Calculate secondary volume using SAME price range as primary
-        secondaryVol = array.new_float(actualRows, 0.0)
-
-        // Accumulate secondary volume
-        for i = 0 to secondaryBarsBack
-            barHi = high[i]
-            barLo = low[i]
-            barVol = volume[i]
-            barRange = barHi - barLo
-
-            if barRange > 0
-                // Distribute volume proportionally
-                for r = 0 to actualRows - 1
-                    rowLo = lo + r * rowHeight
-                    rowHi = lo + (r + 1) * rowHeight
-
-                    if barLo < rowHi and barHi > rowLo
-                        overlap = math.min(barHi, rowHi) - math.max(barLo, rowLo)
-                        proportion = overlap / barRange
-                        array.set(secondaryVol, r, array.get(secondaryVol, r) + barVol * proportion)
+        // ========== SECONDARY PROFILE ==========
+        if showSecondary
+            // Calculate secondary lookback range
+            secondaryBarsBack = 0
+            if useSecondaryTimeRange
+                // Find the furthest bar back where time >= secondaryStartTime
+                secondaryStartBarIndex = 0
+                maxSecondarySearch = math.min(bar_index, 4999)
+                for i = 0 to maxSecondarySearch
+                    if time[i] >= secondaryStartTime
+                        secondaryStartBarIndex := i
+                secondaryBarsBack := secondaryStartBarIndex
+                if secondaryBarsBack <= 0
+                    secondaryBarsBack := math.min(secondaryLookback - 1, bar_index)
+                secondaryBarsBack := math.min(secondaryBarsBack, 4999)
             else
-                // Zero-range bar - assign to one row
-                rowIdx = math.floor((barLo - lo) / rowHeight)
-                rowIdx := math.max(0, math.min(actualRows - 1, rowIdx))
-                array.set(secondaryVol, rowIdx, array.get(secondaryVol, rowIdx) + barVol)
+                secondaryBarsBack := math.min(secondaryLookback - 1, bar_index)
 
-        // Find max secondary volume
-        secondaryMaxVol = array.max(secondaryVol)
+            // Calculate secondary volume using SAME price range as primary
+            secondaryVol = array.new_float(actualRows, 0.0)
 
-        // Draw secondary profile
-        secondaryStartBar = profileStartBar + secondaryOffsetFromPrimary
+            // Accumulate secondary volume
+            for i = 0 to secondaryBarsBack
+                barHi = high[i]
+                barLo = low[i]
+                barVol = volume[i]
+                barRange = barHi - barLo
 
-        if secondaryMaxVol > 0
-            for r = 0 to actualRows - 1
-                v = array.get(secondaryVol, r)
-                if v > 0
-                    rowLo = lo + r * rowHeight
-                    rowHi = lo + (r + 1) * rowHeight
+                if barRange > 0
+                    // Distribute volume proportionally
+                    for r = 0 to actualRows - 1
+                        rowLo = lo + r * rowHeight
+                        rowHi = lo + (r + 1) * rowHeight
 
-                    // Calculate width
-                    width = int((v / secondaryMaxVol) * secondaryWidth)
+                        if barLo < rowHi and barHi > rowLo
+                            overlap = math.min(barHi, rowHi) - math.max(barLo, rowLo)
+                            proportion = overlap / barRange
+                            array.set(secondaryVol, r, array.get(secondaryVol, r) + barVol * proportion)
+                else
+                    // Zero-range bar - assign to one row
+                    rowIdx = math.floor((barLo - lo) / rowHeight)
+                    rowIdx := math.max(0, math.min(actualRows - 1, rowIdx))
+                    array.set(secondaryVol, rowIdx, array.get(secondaryVol, rowIdx) + barVol)
 
-                    if width > 0
-                        x2 = secondaryStartBar + width
+            // Find max secondary volume
+            secondaryMaxVol = array.max(secondaryVol)
 
-                        // Determine color intensity
-                        intensity = int((v / secondaryMaxVol) * 100)
-                        boxColor = color.new(secondaryColor, 100 - intensity)
+            // Draw secondary profile
+            secondaryStartBar = profileStartBar + secondaryOffsetFromPrimary
 
-                        // Draw box
-                        b = box.new(secondaryStartBar, rowLo, x2, rowHi, border_color=color.new(secondaryColor, 30), bgcolor=boxColor, border_width=1, extend=extend.none)
-                        array.push(secondaryBoxes, b)
+            if secondaryMaxVol > 0
+                for r = 0 to actualRows - 1
+                    v = array.get(secondaryVol, r)
+                    if v > 0
+                        rowLo = lo + r * rowHeight
+                        rowHi = lo + (r + 1) * rowHeight
+
+                        // Calculate width
+                        width = int((v / secondaryMaxVol) * secondaryWidth)
+
+                        if width > 0
+                            x2 = secondaryStartBar + width
+
+                            // Determine color intensity
+                            intensity = int((v / secondaryMaxVol) * 100)
+                            boxColor = color.new(secondaryColor, 100 - intensity)
+
+                            // Draw box
+                            b = box.new(secondaryStartBar, rowLo, x2, rowHi, border_color=color.new(secondaryColor, 30), bgcolor=boxColor, border_width=1, extend=extend.none)
+                            array.push(secondaryBoxes, b)
 
     // Debug info
     if showDebug
