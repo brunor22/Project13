@@ -40,8 +40,10 @@ if barstate.islast
     barsBack = 0
     if useTimeRange
         // Find the furthest bar back where time >= startTime
+        // Limit search to max_bars_back to prevent runtime errors
         startBarIndex = 0
-        for i = 0 to bar_index
+        maxSearch = math.min(bar_index, 4999)
+        for i = 0 to maxSearch
             if time[i] >= startTime
                 startBarIndex := i
         // barsBack is now the number of bars from startTime to current
