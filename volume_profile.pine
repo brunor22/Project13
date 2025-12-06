@@ -12,7 +12,8 @@ rows = input.int(24, "Number of Rows", minval=10, maxval=100, tooltip="Number of
 ticksPerRow = input.float(1.0, "Ticks Per Row", minval=0.01, step=0.01, tooltip="Price increment per row (only used if 'Use Ticks Per Row' is enabled)")
 
 valueArea = input.float(70, "Value Area %", minval=50, maxval=100)
-profileWidth = input.int(10, "Profile Width (bars)", minval=5, maxval=50)
+profileWidth = input.int(10, "Profile Width (bars)", minval=5, maxval=400, tooltip="Width of the volume profile bars")
+profileOffset = input.int(0, "Profile Offset (bars)", minval=0, maxval=500, tooltip="Shift the profile to the right by this many bars")
 showDebug = input.bool(false, "Show Debug Info", tooltip="Display calculation details for troubleshooting")
 
 // Display options
@@ -150,8 +151,9 @@ if barstate.islast
         valPrice = lo + vaLo * rowHeight + rowHeight / 2
 
         // Draw profile
+        profileStartBar = bar_index + profileOffset
         startBar = bar_index - barsBack
-        endBar = bar_index + profileWidth
+        endBar = profileStartBar + profileWidth
 
         if maxVol > 0
             for r = 0 to actualRows - 1
@@ -165,31 +167,31 @@ if barstate.islast
                     width = int((v / maxVol) * profileWidth)
 
                     if width > 0
-                        x2 = bar_index + width
+                        x2 = profileStartBar + width
 
                         // Determine color intensity
                         intensity = int((v / maxVol) * 100)
                         boxColor = color.new(profileColor, 100 - intensity)
 
                         // Draw box
-                        b = box.new(bar_index, rowLo, x2, rowHi, border_color=color.new(profileColor, 50), bgcolor=boxColor, border_width=1, extend=extend.none)
+                        b = box.new(profileStartBar, rowLo, x2, rowHi, border_color=color.new(profileColor, 50), bgcolor=boxColor, border_width=1, extend=extend.none)
                         array.push(boxes, b)
 
         // Draw POC
         if showPOC
-            l = line.new(startBar, pocPrice, endBar, pocPrice, color=pocColor, width=2, style=line.style_solid, extend=extend.none)
+            l = line.new(profileStartBar, pocPrice, endBar, pocPrice, color=pocColor, width=2, style=line.style_solid, extend=extend.none)
             array.push(lines, l)
             label.new(endBar, pocPrice, "POC", style=label.style_label_left, color=color.new(pocColor, 80), textcolor=pocColor, size=size.small)
 
         // Draw VAH
         if showVAH
-            l = line.new(startBar, vahPrice, endBar, vahPrice, color=vahColor, width=1, style=line.style_dashed, extend=extend.none)
+            l = line.new(profileStartBar, vahPrice, endBar, vahPrice, color=vahColor, width=1, style=line.style_dashed, extend=extend.none)
             array.push(lines, l)
             label.new(endBar, vahPrice, "VAH", style=label.style_label_left, color=color.new(vahColor, 80), textcolor=vahColor, size=size.small)
 
         // Draw VAL
         if showVAL
-            l = line.new(startBar, valPrice, endBar, valPrice, color=valColor, width=1, style=line.style_dashed, extend=extend.none)
+            l = line.new(profileStartBar, valPrice, endBar, valPrice, color=valColor, width=1, style=line.style_dashed, extend=extend.none)
             array.push(lines, l)
             label.new(endBar, valPrice, "VAL", style=label.style_label_left, color=color.new(valColor, 80), textcolor=valColor, size=size.small)
 
