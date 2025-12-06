@@ -131,48 +131,23 @@ if barstate.islast
                         boxColor = color.new(profileColor, 100 - intensity)
 
                         // Draw box
-                        b = box.new(bar_index, rowLo, x2, rowHi,
-                                   border_color=color.new(profileColor, 50),
-                                   bgcolor=boxColor,
-                                   border_width=1,
-                                   extend=extend.none)
+                        b = box.new(bar_index, rowLo, x2, rowHi, border_color=color.new(profileColor, 50), bgcolor=boxColor, border_width=1, extend=extend.none)
                         array.push(boxes, b)
 
         // Draw POC
         if showPOC
-            l = line.new(startBar, pocPrice, endBar, pocPrice,
-                        color=pocColor, width=2, style=line.style_solid,
-                        extend=extend.none)
+            l = line.new(startBar, pocPrice, endBar, pocPrice, color=pocColor, width=2, style=line.style_solid, extend=extend.none)
             array.push(lines, l)
-
-            label.new(endBar, pocPrice, "POC",
-                     style=label.style_label_left,
-                     color=color.new(pocColor, 80),
-                     textcolor=pocColor,
-                     size=size.small)
+            label.new(endBar, pocPrice, "POC", style=label.style_label_left, color=color.new(pocColor, 80), textcolor=pocColor, size=size.small)
 
         // Draw VAH
         if showVAH
-            l = line.new(startBar, vahPrice, endBar, vahPrice,
-                        color=vahColor, width=1, style=line.style_dashed,
-                        extend=extend.none)
+            l = line.new(startBar, vahPrice, endBar, vahPrice, color=vahColor, width=1, style=line.style_dashed, extend=extend.none)
             array.push(lines, l)
-
-            label.new(endBar, vahPrice, "VAH",
-                     style=label.style_label_left,
-                     color=color.new(vahColor, 80),
-                     textcolor=vahColor,
-                     size=size.small)
+            label.new(endBar, vahPrice, "VAH", style=label.style_label_left, color=color.new(vahColor, 80), textcolor=vahColor, size=size.small)
 
         // Draw VAL
         if showVAL
-            l = line.new(startBar, valPrice, endBar, valPrice,
-                        color=valColor, width=1, style=line.style_dashed,
-                        extend=extend.none)
+            l = line.new(startBar, valPrice, endBar, valPrice, color=valColor, width=1, style=line.style_dashed, extend=extend.none)
             array.push(lines, l)
-
-            label.new(endBar, valPrice, "VAL",
-                     style=label.style_label_left,
-                     color=color.new(valColor, 80),
-                     textcolor=valColor,
-                     size=size.small)
+            label.new(endBar, valPrice, "VAL", style=label.style_label_left, color=color.new(valColor, 80), textcolor=valColor, size=size.small)
