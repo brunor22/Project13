@@ -229,18 +229,18 @@ if barstate.islast
                     rowHi = lo + (r + 1) * rowHeight
 
                     // Calculate width using COMBINED max volume for direct comparison with secondary
-                    width = int((v / combinedMaxVol) * profileWidth)
+                    // Ensure minimum width of 1 for any level with volume
+                    width = math.max(1, int((v / combinedMaxVol) * profileWidth))
 
-                    if width > 0
-                        x2 = profileStartBar + width
+                    x2 = profileStartBar + width
 
-                        // Determine color intensity based on primary's own max
-                        intensity = int((v / maxVol) * 100)
-                        boxColor = color.new(profileColor, 100 - intensity)
+                    // Determine color intensity based on primary's own max
+                    intensity = int((v / maxVol) * 100)
+                    boxColor = color.new(profileColor, 100 - intensity)
 
-                        // Draw box
-                        b = box.new(profileStartBar, rowLo, x2, rowHi, border_color=color.new(profileColor, 30), bgcolor=boxColor, border_width=1, extend=extend.none)
-                        array.push(boxes, b)
+                    // Draw box
+                    b = box.new(profileStartBar, rowLo, x2, rowHi, border_color=color.new(profileColor, 30), bgcolor=boxColor, border_width=1, extend=extend.none)
+                    array.push(boxes, b)
 
             // Draw POC, VAH, VAL lines for primary profile
             if showPOC
@@ -266,18 +266,18 @@ if barstate.islast
                     rowHi = lo + (r + 1) * rowHeight
 
                     // Calculate width using COMBINED max volume for direct comparison
-                    width = int((v / combinedMaxVol) * profileWidth)
+                    // Ensure minimum width of 1 for any level with volume
+                    width = math.max(1, int((v / combinedMaxVol) * profileWidth))
 
-                    if width > 0
-                        x2 = secondaryStartBar + width
+                    x2 = secondaryStartBar + width
 
-                        // Determine color intensity based on secondary's own max
-                        intensity = int((v / secondaryMaxVol) * 100)
-                        boxColor = color.new(secondaryColor, 100 - intensity)
+                    // Determine color intensity based on secondary's own max
+                    intensity = int((v / secondaryMaxVol) * 100)
+                    boxColor = color.new(secondaryColor, 100 - intensity)
 
-                        // Draw box
-                        b = box.new(secondaryStartBar, rowLo, x2, rowHi, border_color=color.new(secondaryColor, 30), bgcolor=boxColor, border_width=1, extend=extend.none)
-                        array.push(secondaryBoxes, b)
+                    // Draw box
+                    b = box.new(secondaryStartBar, rowLo, x2, rowHi, border_color=color.new(secondaryColor, 30), bgcolor=boxColor, border_width=1, extend=extend.none)
+                    array.push(secondaryBoxes, b)
 
     // Debug info
     if showDebug
