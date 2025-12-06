@@ -2,8 +2,8 @@
 indicator("Volume Profile", overlay=true, max_bars_back=5000, max_lines_count=500, max_boxes_count=500)
 
 // ========== INPUTS ==========
-useTimeRange = input.bool(true, "Use Time Range", tooltip="If true, use start time. If false, use bar lookback")
-startTime = input.time(timestamp("01 Jan 2024 00:00 +0000"), "Start Time", tooltip="Profile start time (only used if 'Use Time Range' is enabled)")
+useTimeRange = input.bool(false, "Use Time Range", tooltip="If true, use start time. If false, use bar lookback")
+startTime = input.time(timestamp("2024-01-01 00:00 +0000"), "Start Time", tooltip="Profile start time (only used if 'Use Time Range' is enabled)")
 lookback = input.int(100, "Lookback Bars", minval=20, maxval=500, tooltip="Number of bars (only used if 'Use Time Range' is disabled)")
 rows = input.int(24, "Number of Rows", minval=10, maxval=50)
 valueArea = input.float(70, "Value Area %", minval=50, maxval=100)
@@ -45,6 +45,11 @@ if barstate.islast
                 startBarIndex := i
         // barsBack is now the number of bars from startTime to current
         barsBack := startBarIndex
+        // Safety check: if no bars found or invalid range, use default lookback
+        if barsBack <= 0
+            barsBack := math.min(lookback - 1, bar_index)
+        // Cap at max_bars_back limit
+        barsBack := math.min(barsBack, 4999)
     else
         barsBack := math.min(lookback - 1, bar_index)
 
