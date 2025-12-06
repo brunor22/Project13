@@ -2,7 +2,9 @@
 indicator("Volume Profile", overlay=true, max_bars_back=5000, max_lines_count=500, max_boxes_count=500)
 
 // ========== INPUTS ==========
-lookback = input.int(100, "Lookback Period", minval=20, maxval=500)
+useTimeRange = input.bool(true, "Use Time Range", tooltip="If true, use start time. If false, use bar lookback")
+startTime = input.time(timestamp("01 Jan 2024 00:00 +0000"), "Start Time", tooltip="Profile start time (only used if 'Use Time Range' is enabled)")
+lookback = input.int(100, "Lookback Bars", minval=20, maxval=500, tooltip="Number of bars (only used if 'Use Time Range' is disabled)")
 rows = input.int(24, "Number of Rows", minval=10, maxval=50)
 valueArea = input.float(70, "Value Area %", minval=50, maxval=100)
 profileWidth = input.int(10, "Profile Width (bars)", minval=5, maxval=50)
@@ -33,10 +35,21 @@ deleteDrawings() =>
 if barstate.islast
     deleteDrawings()
 
+    // Calculate lookback range
+    barsBack = 0
+    if useTimeRange
+        // Find the bar index where time >= startTime
+        for i = 0 to bar_index
+            if time[i] >= startTime
+                barsBack := i
+                break
+    else
+        barsBack := math.min(lookback - 1, bar_index)
+
     // Find price range
     var hi = high
     var lo = low
-    for i = 0 to math.min(lookback - 1, bar_index)
+    for i = 0 to barsBack
         hi := math.max(hi, high[i])
         lo := math.min(lo, low[i])
 
@@ -48,7 +61,7 @@ if barstate.islast
         vol = array.new_float(rows, 0.0)
 
         // Accumulate volume
-        for i = 0 to math.min(lookback - 1, bar_index)
+        for i = 0 to barsBack
             barHi = high[i]
             barLo = low[i]
             barVol = volume[i]
@@ -109,7 +122,7 @@ if barstate.islast
         valPrice = lo + vaLo * rowHeight + rowHeight / 2
 
         // Draw profile
-        startBar = bar_index - lookback + 1
+        startBar = bar_index - barsBack
         endBar = bar_index + profileWidth
 
         if maxVol > 0
