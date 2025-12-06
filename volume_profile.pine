@@ -170,11 +170,11 @@ if barstate.islast
         endBar = profileStartBar + profileWidth
 
         // ========== SECONDARY PROFILE CALCULATION ==========
+        secondaryVol = array.new_float(actualRows, 0.0)
         secondaryMaxVol = 0.0
         combinedMaxVol = maxVol
 
         if showSecondary
-            secondaryVol = array.new_float(actualRows, 0.0)
             // Calculate secondary lookback range
             secondaryBarsBack = 0
             if useSecondaryTimeRange
