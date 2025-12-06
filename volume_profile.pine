@@ -1,0 +1,181 @@
+//@version=5
+indicator("Volume Profile", overlay=true, max_bars_back=5000, max_lines_count=500)
+
+// ========== INPUTS ==========
+lookbackPeriod = input.int(100, "Lookback Period", minval=10, maxval=500, tooltip="Number of bars to analyze")
+numberOfRows = input.int(24, "Number of Price Rows", minval=10, maxval=100, tooltip="Price levels to divide the range into")
+valueAreaPercent = input.float(70.0, "Value Area %", minval=50, maxval=100, step=1, tooltip="Percentage of volume in value area")
+showPOC = input.bool(true, "Show POC", tooltip="Point of Control - highest volume level")
+showVAH = input.bool(true, "Show VAH", tooltip="Value Area High")
+showVAL = input.bool(true, "Show VAL", tooltip="Value Area Low")
+showProfile = input.bool(true, "Show Volume Profile", tooltip="Display volume bars")
+profileWidth = input.int(50, "Profile Width", minval=10, maxval=200, tooltip="Width of volume profile bars")
+
+// ========== COLORS ==========
+pocColor = input.color(color.new(color.red, 0), "POC Color", group="Colors")
+vahColor = input.color(color.new(color.green, 0), "VAH Color", group="Colors")
+valColor = input.color(color.new(color.blue, 0), "VAL Color", group="Colors")
+profileColorHigh = input.color(color.new(color.orange, 70), "Profile High Volume", group="Colors")
+profileColorLow = input.color(color.new(color.gray, 80), "Profile Low Volume", group="Colors")
+
+// ========== VARIABLES ==========
+var line pocLine = na
+var line vahLine = na
+var line valLine = na
+var line[] profileLines = array.new_line(0)
+var box[] profileBoxes = array.new_box(0)
+
+// ========== CALCULATE VOLUME PROFILE ==========
+if barstate.islast and showProfile
+    // Clear previous drawings
+    line.delete(pocLine)
+    line.delete(vahLine)
+    line.delete(valLine)
+
+    if array.size(profileLines) > 0
+        for i = 0 to array.size(profileLines) - 1
+            line.delete(array.get(profileLines, i))
+        array.clear(profileLines)
+
+    if array.size(profileBoxes) > 0
+        for i = 0 to array.size(profileBoxes) - 1
+            box.delete(array.get(profileBoxes, i))
+        array.clear(profileBoxes)
+
+    // Calculate price range
+    float maxPrice = high[0]
+    float minPrice = low[0]
+
+    for i = 0 to math.min(lookbackPeriod - 1, bar_index)
+        maxPrice := math.max(maxPrice, high[i])
+        minPrice := math.min(minPrice, low[i])
+
+    // Calculate price step
+    priceRange = maxPrice - minPrice
+    priceStep = priceRange / numberOfRows
+
+    // Initialize volume array
+    var volumeAtPrice = array.new_float(numberOfRows, 0.0)
+    array.clear(volumeAtPrice)
+    for i = 0 to numberOfRows - 1
+        array.set(volumeAtPrice, i, 0.0)
+
+    // Accumulate volume at each price level
+    for i = 0 to math.min(lookbackPeriod - 1, bar_index)
+        barHigh = high[i]
+        barLow = low[i]
+        barVolume = volume[i]
+
+        // Distribute volume across price levels that the bar touches
+        for row = 0 to numberOfRows - 1
+            levelLow = minPrice + row * priceStep
+            levelHigh = minPrice + (row + 1) * priceStep
+
+            // Check if this price level overlaps with the bar
+            if barLow <= levelHigh and barHigh >= levelLow
+                // Calculate overlap ratio
+                overlapLow = math.max(barLow, levelLow)
+                overlapHigh = math.min(barHigh, levelHigh)
+                overlapRatio = (overlapHigh - overlapLow) / (barHigh - barLow)
+
+                // Add proportional volume
+                currentVolume = array.get(volumeAtPrice, row)
+                array.set(volumeAtPrice, row, currentVolume + barVolume * overlapRatio)
+
+    // Find maximum volume for scaling
+    float maxVolume = 0.0
+    for i = 0 to numberOfRows - 1
+        vol = array.get(volumeAtPrice, i)
+        maxVolume := math.max(maxVolume, vol)
+
+    // Find POC (Point of Control) - price level with highest volume
+    float pocPrice = 0.0
+    int pocIndex = 0
+    float pocVolume = 0.0
+
+    for i = 0 to numberOfRows - 1
+        vol = array.get(volumeAtPrice, i)
+        if vol > pocVolume
+            pocVolume := vol
+            pocIndex := i
+            pocPrice := minPrice + i * priceStep + priceStep / 2
+
+    // Calculate Value Area
+    totalVolume = 0.0
+    for i = 0 to numberOfRows - 1
+        totalVolume := totalVolume + array.get(volumeAtPrice, i)
+
+    targetVolume = totalVolume * valueAreaPercent / 100.0
+    accumulatedVolume = array.get(volumeAtPrice, pocIndex)
+
+    upperIndex = pocIndex
+    lowerIndex = pocIndex
+
+    // Expand from POC until we reach target volume
+    while accumulatedVolume < targetVolume and (upperIndex < numberOfRows - 1 or lowerIndex > 0)
+        upperVol = upperIndex < numberOfRows - 1 ? array.get(volumeAtPrice, upperIndex + 1) : 0.0
+        lowerVol = lowerIndex > 0 ? array.get(volumeAtPrice, lowerIndex - 1) : 0.0
+
+        if upperVol >= lowerVol and upperIndex < numberOfRows - 1
+            upperIndex := upperIndex + 1
+            accumulatedVolume := accumulatedVolume + upperVol
+        else if lowerIndex > 0
+            lowerIndex := lowerIndex - 1
+            accumulatedVolume := accumulatedVolume + lowerVol
+        else
+            break
+
+    vahPrice = minPrice + upperIndex * priceStep + priceStep / 2
+    valPrice = minPrice + lowerIndex * priceStep + priceStep / 2
+
+    // Draw volume profile bars
+    currentBarIndex = bar_index
+
+    for i = 0 to numberOfRows - 1
+        vol = array.get(volumeAtPrice, i)
+        if vol > 0
+            priceLevel = minPrice + i * priceStep + priceStep / 2
+
+            // Calculate bar width based on volume
+            barWidth = (vol / maxVolume) * profileWidth
+
+            // Color based on volume intensity
+            barColor = color.from_gradient(vol, 0, maxVolume, profileColorLow, profileColorHigh)
+
+            // Draw horizontal volume bar
+            x1 = currentBarIndex + 1
+            x2 = currentBarIndex + 1 + int(barWidth)
+            y1 = priceLevel - priceStep / 2
+            y2 = priceLevel + priceStep / 2
+
+            newBox = box.new(x1, y1, x2, y2, border_color=color.new(barColor, 50), bgcolor=color.new(barColor, 70), border_width=1)
+            array.push(profileBoxes, newBox)
+
+    // Draw POC line
+    if showPOC
+        pocLine := line.new(currentBarIndex - lookbackPeriod, pocPrice, currentBarIndex + profileWidth, pocPrice,
+                             color=pocColor, width=2, style=line.style_solid)
+        label.new(currentBarIndex + profileWidth, pocPrice, "POC",
+                  color=color.new(pocColor, 80), textcolor=pocColor,
+                  style=label.style_label_left, size=size.small)
+
+    // Draw VAH line
+    if showVAH
+        vahLine := line.new(currentBarIndex - lookbackPeriod, vahPrice, currentBarIndex + profileWidth, vahPrice,
+                             color=vahColor, width=1, style=line.style_dashed)
+        label.new(currentBarIndex + profileWidth, vahPrice, "VAH",
+                  color=color.new(vahColor, 80), textcolor=vahColor,
+                  style=label.style_label_left, size=size.small)
+
+    // Draw VAL line
+    if showVAL
+        valLine := line.new(currentBarIndex - lookbackPeriod, valPrice, currentBarIndex + profileWidth, valPrice,
+                             color=valColor, width=1, style=line.style_dashed)
+        label.new(currentBarIndex + profileWidth, valPrice, "VAL",
+                  color=color.new(valColor, 80), textcolor=valColor,
+                  style=label.style_label_left, size=size.small)
+
+// ========== PLOT DATA FOR TABLE ==========
+plot(na, title="POC")
+plot(na, title="VAH")
+plot(na, title="VAL")
