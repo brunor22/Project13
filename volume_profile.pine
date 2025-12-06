@@ -76,12 +76,13 @@ if barstate.islast
     else
         barsBack := math.min(lookback - 1, bar_index)
 
-    // Find price range - start with first bar in range then expand
-    hi = high[barsBack]
-    lo = low[barsBack]
-    for i = 0 to barsBack
-        hi := math.max(hi, high[i])
-        lo := math.min(lo, low[i])
+    // Find price range - initialize safely and expand through all bars
+    hi = high[0]
+    lo = low[0]
+    for i = 1 to barsBack
+        if not na(high[i])
+            hi := math.max(hi, high[i])
+            lo := math.min(lo, low[i])
 
     // Calculate number of rows and row height
     actualRows = 0
