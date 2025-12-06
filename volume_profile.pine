@@ -14,6 +14,16 @@ ticksPerRow = input.float(1.0, "Ticks Per Row", minval=0.01, step=0.01, tooltip=
 valueArea = input.float(70, "Value Area %", minval=50, maxval=100)
 profileWidth = input.int(10, "Profile Width (bars)", minval=5, maxval=400, tooltip="Width of the volume profile bars")
 profileOffset = input.int(0, "Profile Offset (bars)", minval=0, maxval=500, tooltip="Shift the profile to the right by this many bars")
+
+// Secondary profile
+showSecondary = input.bool(false, "Show Secondary Profile", tooltip="Display a second profile from a different time period", group="Secondary Profile")
+useSecondaryTimeRange = input.bool(true, "Use Time Range", tooltip="If true, use start time. If false, use bar lookback", group="Secondary Profile")
+secondaryStartTime = input.time(timestamp("2024-01-01 00:00 +0000"), "Start Time", tooltip="Secondary profile start time", group="Secondary Profile")
+secondaryLookback = input.int(50, "Lookback Bars", minval=20, maxval=500, tooltip="Number of bars for secondary profile", group="Secondary Profile")
+secondaryWidth = input.int(5, "Secondary Width (bars)", minval=1, maxval=200, tooltip="Width of secondary profile bars", group="Secondary Profile")
+secondaryOffsetFromPrimary = input.int(0, "Offset from Primary", minval=-200, maxval=200, tooltip="Position relative to primary profile start (negative = left, positive = right)", group="Secondary Profile")
+secondaryColor = input.color(color.new(color.blue, 70), "Secondary Color", group="Secondary Profile")
+
 showDebug = input.bool(false, "Show Debug Info", tooltip="Display calculation details for troubleshooting")
 
 // Display options
@@ -28,6 +38,7 @@ profileColor = input.color(color.new(color.orange, 60), "Profile Color")
 // ========== STORAGE ==========
 var box[] boxes = array.new_box()
 var line[] lines = array.new_line()
+var box[] secondaryBoxes = array.new_box()
 
 // ========== FUNCTIONS ==========
 deleteDrawings() =>
@@ -37,6 +48,9 @@ deleteDrawings() =>
     for l in lines
         line.delete(l)
     array.clear(lines)
+    for b in secondaryBoxes
+        box.delete(b)
+    array.clear(secondaryBoxes)
 
 // ========== MAIN LOGIC ==========
 if barstate.islast
@@ -194,6 +208,77 @@ if barstate.islast
             l = line.new(profileStartBar, valPrice, endBar, valPrice, color=valColor, width=1, style=line.style_dashed, extend=extend.none)
             array.push(lines, l)
             label.new(endBar, valPrice, "VAL", style=label.style_label_left, color=color.new(valColor, 80), textcolor=valColor, size=size.small)
+
+    // ========== SECONDARY PROFILE ==========
+    if showSecondary and rowHeight > 0
+        // Calculate secondary lookback range
+        secondaryBarsBack = 0
+        if useSecondaryTimeRange
+            // Find the furthest bar back where time >= secondaryStartTime
+            secondaryStartBarIndex = 0
+            maxSecondarySearch = math.min(bar_index, 4999)
+            for i = 0 to maxSecondarySearch
+                if time[i] >= secondaryStartTime
+                    secondaryStartBarIndex := i
+            secondaryBarsBack := secondaryStartBarIndex
+            if secondaryBarsBack <= 0
+                secondaryBarsBack := math.min(secondaryLookback - 1, bar_index)
+            secondaryBarsBack := math.min(secondaryBarsBack, 4999)
+        else
+            secondaryBarsBack := math.min(secondaryLookback - 1, bar_index)
+
+        // Calculate secondary volume using SAME price range as primary
+        secondaryVol = array.new_float(actualRows, 0.0)
+
+        // Accumulate secondary volume
+        for i = 0 to secondaryBarsBack
+            barHi = high[i]
+            barLo = low[i]
+            barVol = volume[i]
+            barRange = barHi - barLo
+
+            if barRange > 0
+                // Distribute volume proportionally
+                for r = 0 to actualRows - 1
+                    rowLo = lo + r * rowHeight
+                    rowHi = lo + (r + 1) * rowHeight
+
+                    if barLo < rowHi and barHi > rowLo
+                        overlap = math.min(barHi, rowHi) - math.max(barLo, rowLo)
+                        proportion = overlap / barRange
+                        array.set(secondaryVol, r, array.get(secondaryVol, r) + barVol * proportion)
+            else
+                // Zero-range bar - assign to one row
+                rowIdx = math.floor((barLo - lo) / rowHeight)
+                rowIdx := math.max(0, math.min(actualRows - 1, rowIdx))
+                array.set(secondaryVol, rowIdx, array.get(secondaryVol, rowIdx) + barVol)
+
+        // Find max secondary volume
+        secondaryMaxVol = array.max(secondaryVol)
+
+        // Draw secondary profile
+        secondaryStartBar = profileStartBar + secondaryOffsetFromPrimary
+
+        if secondaryMaxVol > 0
+            for r = 0 to actualRows - 1
+                v = array.get(secondaryVol, r)
+                if v > 0
+                    rowLo = lo + r * rowHeight
+                    rowHi = lo + (r + 1) * rowHeight
+
+                    // Calculate width
+                    width = int((v / secondaryMaxVol) * secondaryWidth)
+
+                    if width > 0
+                        x2 = secondaryStartBar + width
+
+                        // Determine color intensity
+                        intensity = int((v / secondaryMaxVol) * 100)
+                        boxColor = color.new(secondaryColor, 100 - intensity)
+
+                        // Draw box
+                        b = box.new(secondaryStartBar, rowLo, x2, rowHi, border_color=color.new(secondaryColor, 30), bgcolor=boxColor, border_width=1, extend=extend.none)
+                        array.push(secondaryBoxes, b)
 
     // Debug info
     if showDebug
