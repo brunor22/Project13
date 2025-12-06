@@ -76,9 +76,9 @@ if barstate.islast
     else
         barsBack := math.min(lookback - 1, bar_index)
 
-    // Find price range
-    hi = high[0]
-    lo = low[0]
+    // Find price range - start with first bar in range then expand
+    hi = high[barsBack]
+    lo = low[barsBack]
     for i = 0 to barsBack
         hi := math.max(hi, high[i])
         lo := math.min(lo, low[i])
