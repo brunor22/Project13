@@ -2,6 +2,11 @@
 indicator("Volume Profile", overlay=true, max_bars_back=5000, max_lines_count=500, max_boxes_count=500)
 
 // ========== INPUTS ==========
+
+// Notes: The code will automatically skip rows when needed, but you'll get the best results by keeping rows under:
+//          490 rows for single profile
+//          245 rows for dual profiles
+
 useTimeRange = input.bool(false, "Use Time Range", tooltip="If true, use start time. If false, use bar lookback")
 startTime = input.time(timestamp("2024-01-01 00:00 +0000"), "Start Time", tooltip="Profile start time (only used if 'Use Time Range' is enabled)")
 lookback = input.int(100, "Lookback Bars", minval=20, maxval=500, tooltip="Number of bars (only used if 'Use Time Range' is disabled)")
@@ -83,7 +88,6 @@ if barstate.islast
         if not na(high[i])
             hi := math.max(hi, high[i])
             lo := math.min(lo, low[i])
-
     // Calculate number of rows and row height
     actualRows = 0
     rowHeight = 0.0
@@ -223,32 +227,25 @@ if barstate.islast
 
         // ========== DRAW PRIMARY PROFILE ==========
         if combinedMaxVol > 0
-            // Calculate row skip to stay within box limits
-            // Max 500 boxes total, reserve ~10 for lines, leaving ~490 for profiles
-            maxBoxesPerProfile = showSecondary ? 245 : 490
-            rowSkip = actualRows > maxBoxesPerProfile ? math.ceil(actualRows / maxBoxesPerProfile) : 1
-
             for r = 0 to actualRows - 1
-                // Skip rows if we have too many
-                if r % rowSkip == 0
-                    v = array.get(vol, r)
-                    if v > 0
-                        rowLo = lo + r * rowHeight
-                        rowHi = lo + (r + 1) * rowHeight
+                v = array.get(vol, r)
+                if v > 0
+                    rowLo = lo + r * rowHeight
+                    rowHi = lo + (r + 1) * rowHeight
 
-                        // Calculate width using COMBINED max volume for direct comparison with secondary
-                        // Ensure minimum width of 1 for any level with volume
-                        width = math.max(1, int((v / combinedMaxVol) * profileWidth))
+                    // Calculate width using COMBINED max volume for direct comparison with secondary
+                    // Ensure minimum width of 1 for any level with volume
+                    width = math.max(1, int((v / combinedMaxVol) * profileWidth))
 
-                        x2 = profileStartBar + width
+                    x2 = profileStartBar + width
 
-                        // Determine color intensity based on primary's own max
-                        intensity = int((v / maxVol) * 100)
-                        boxColor = color.new(profileColor, 100 - intensity)
+                    // Determine color intensity based on primary's own max
+                    intensity = int((v / maxVol) * 100)
+                    boxColor = color.new(profileColor, 100 - intensity)
 
-                        // Draw box
-                        b = box.new(profileStartBar, rowLo, x2, rowHi, border_color=color.new(profileColor, 30), bgcolor=boxColor, border_width=1, extend=extend.none)
-                        array.push(boxes, b)
+                    // Draw box
+                    b = box.new(profileStartBar, rowLo, x2, rowHi, border_color=color.new(profileColor, 30), bgcolor=boxColor, border_width=1, extend=extend.none)
+                    array.push(boxes, b)
 
             // Draw POC, VAH, VAL lines for primary profile
             if showPOC
@@ -268,26 +265,24 @@ if barstate.islast
             secondaryStartBar = profileStartBar + secondaryOffsetFromPrimary
 
             for r = 0 to actualRows - 1
-                // Use same rowSkip as primary for consistency
-                if r % rowSkip == 0
-                    v = array.get(secondaryVol, r)
-                    if v > 0
-                        rowLo = lo + r * rowHeight
-                        rowHi = lo + (r + 1) * rowHeight
+                v = array.get(secondaryVol, r)
+                if v > 0
+                    rowLo = lo + r * rowHeight
+                    rowHi = lo + (r + 1) * rowHeight
 
-                        // Calculate width using COMBINED max volume for direct comparison
-                        // Ensure minimum width of 1 for any level with volume
-                        width = math.max(1, int((v / combinedMaxVol) * profileWidth))
+                    // Calculate width using COMBINED max volume for direct comparison
+                    // Ensure minimum width of 1 for any level with volume
+                    width = math.max(1, int((v / combinedMaxVol) * profileWidth))
 
-                        x2 = secondaryStartBar + width
+                    x2 = secondaryStartBar + width
 
-                        // Determine color intensity based on secondary's own max
-                        intensity = int((v / secondaryMaxVol) * 100)
-                        boxColor = color.new(secondaryColor, 100 - intensity)
+                    // Determine color intensity based on secondary's own max
+                    intensity = int((v / secondaryMaxVol) * 100)
+                    boxColor = color.new(secondaryColor, 100 - intensity)
 
-                        // Draw box
-                        b = box.new(secondaryStartBar, rowLo, x2, rowHi, border_color=color.new(secondaryColor, 30), bgcolor=boxColor, border_width=1, extend=extend.none)
-                        array.push(secondaryBoxes, b)
+                    // Draw box
+                    b = box.new(secondaryStartBar, rowLo, x2, rowHi, border_color=color.new(secondaryColor, 30), bgcolor=boxColor, border_width=1, extend=extend.none)
+                    array.push(secondaryBoxes, b)
 
     // Debug info
     if showDebug
