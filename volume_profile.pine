@@ -20,6 +20,9 @@ valueArea = input.float(70, "Value Area %", minval=50, maxval=100)
 profileWidth = input.int(10, "Profile Width (bars)", minval=5, maxval=400, tooltip="Width of the volume profile bars")
 profileOffset = input.int(0, "Profile Offset (bars)", minval=0, maxval=500, tooltip="Shift the profile to the right by this many bars")
 
+// Volume filter
+minVolumeThreshold = input.float(0, "Min Volume Threshold", minval=0, tooltip="Only display rows with volume greater than or equal to this value. Set to 0 to show all rows.")
+
 // Secondary profile
 showSecondary = input.bool(false, "Show Secondary Profile", tooltip="Display a second profile from a different time period", group="Secondary Profile")
 useSecondaryTimeRange = input.bool(true, "Use Time Range", tooltip="If true, use start time. If false, use bar lookback", group="Secondary Profile")
@@ -229,7 +232,8 @@ if barstate.islast
         if combinedMaxVol > 0
             for r = 0 to actualRows - 1
                 v = array.get(vol, r)
-                if v > 0
+                // Apply volume threshold filter
+                if v > 0 and v >= minVolumeThreshold
                     rowLo = lo + r * rowHeight
                     rowHi = lo + (r + 1) * rowHeight
 
@@ -266,7 +270,8 @@ if barstate.islast
 
             for r = 0 to actualRows - 1
                 v = array.get(secondaryVol, r)
-                if v > 0
+                // Apply volume threshold filter
+                if v > 0 and v >= minVolumeThreshold
                     rowLo = lo + r * rowHeight
                     rowHi = lo + (r + 1) * rowHeight
 
