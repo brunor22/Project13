@@ -46,6 +46,7 @@ profileColor = input.color(color.new(color.orange, 60), "Profile Color")
 // ========== STORAGE ==========
 var box[] boxes = array.new_box()
 var line[] lines = array.new_line()
+var label[] labels = array.new_label()
 var box[] secondaryBoxes = array.new_box()
 
 // ========== FUNCTIONS ==========
@@ -56,6 +57,9 @@ deleteDrawings() =>
     for l in lines
         line.delete(l)
     array.clear(lines)
+    for lbl in labels
+        label.delete(lbl)
+    array.clear(labels)
     for b in secondaryBoxes
         box.delete(b)
     array.clear(secondaryBoxes)
@@ -255,14 +259,25 @@ if barstate.islast
             if showPOC
                 pocLine = line.new(startBar, pocPrice, endBar, pocPrice, color=pocColor, width=2, style=line.style_solid)
                 array.push(lines, pocLine)
+                // Add POC label
+                pocLabel = label.new(endBar, pocPrice, "POC: " + str.tostring(pocPrice, format.mintick) + " Vol: " + str.tostring(pocVol, format.volume), style=label.style_label_left, color=pocColor, textcolor=color.white, size=size.small)
+                array.push(labels, pocLabel)
 
             if showVAH
                 vahLine = line.new(startBar, vahPrice, endBar, vahPrice, color=vahColor, width=1, style=line.style_dashed)
                 array.push(lines, vahLine)
+                // Add VAH label
+                vahVol = array.get(vol, vaHi)
+                vahLabel = label.new(endBar, vahPrice, "VAH: " + str.tostring(vahPrice, format.mintick) + " Vol: " + str.tostring(vahVol, format.volume), style=label.style_label_left, color=vahColor, textcolor=color.white, size=size.small)
+                array.push(labels, vahLabel)
 
             if showVAL
                 valLine = line.new(startBar, valPrice, endBar, valPrice, color=valColor, width=1, style=line.style_dashed)
                 array.push(lines, valLine)
+                // Add VAL label
+                valVol = array.get(vol, vaLo)
+                valLabel = label.new(endBar, valPrice, "VAL: " + str.tostring(valPrice, format.mintick) + " Vol: " + str.tostring(valVol, format.volume), style=label.style_label_left, color=valColor, textcolor=color.white, size=size.small)
+                array.push(labels, valLabel)
 
         // ========== DRAW SECONDARY PROFILE ==========
         if showSecondary and combinedMaxVol > 0
