@@ -184,6 +184,8 @@ if barstate.islast
         // ========== SECONDARY PROFILE CALCULATION ==========
         secondaryVol = array.new_float(actualRows, 0.0)
         secondaryMaxVol = 0.0
+        secondaryPocPrice = 0.0
+        secondaryPocVol = 0.0
         combinedMaxVol = maxVol
 
         if showSecondary
@@ -231,14 +233,14 @@ if barstate.islast
 
             // Find secondary POC
             secondaryPocIdx = 0
-            secondaryPocVol = 0.0
+            secondaryPocVol := 0.0
             for r = 0 to actualRows - 1
                 v = array.get(secondaryVol, r)
                 if v > secondaryPocVol
                     secondaryPocVol := v
                     secondaryPocIdx := r
 
-            secondaryPocPrice = lo + secondaryPocIdx * rowHeight + rowHeight / 2
+            secondaryPocPrice := lo + secondaryPocIdx * rowHeight + rowHeight / 2
 
             // Use COMBINED max volume for scaling both profiles
             combinedMaxVol := math.max(maxVol, secondaryMaxVol)
