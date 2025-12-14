@@ -229,6 +229,17 @@ if barstate.islast
             // Find max secondary volume
             secondaryMaxVol := array.max(secondaryVol)
 
+            // Find secondary POC
+            secondaryPocIdx = 0
+            secondaryPocVol = 0.0
+            for r = 0 to actualRows - 1
+                v = array.get(secondaryVol, r)
+                if v > secondaryPocVol
+                    secondaryPocVol := v
+                    secondaryPocIdx := r
+
+            secondaryPocPrice = lo + secondaryPocIdx * rowHeight + rowHeight / 2
+
             // Use COMBINED max volume for scaling both profiles
             combinedMaxVol := math.max(maxVol, secondaryMaxVol)
 
@@ -282,6 +293,7 @@ if barstate.islast
         // ========== DRAW SECONDARY PROFILE ==========
         if showSecondary and combinedMaxVol > 0
             secondaryStartBar = profileStartBar + secondaryOffsetFromPrimary
+            secondaryEndBar = secondaryStartBar + profileWidth
 
             for r = 0 to actualRows - 1
                 v = array.get(secondaryVol, r)
@@ -303,6 +315,14 @@ if barstate.islast
                     // Draw box
                     b = box.new(secondaryStartBar, rowLo, x2, rowHi, border_color=color.new(secondaryColor, 30), bgcolor=boxColor, border_width=1, extend=extend.none)
                     array.push(secondaryBoxes, b)
+
+            // Draw secondary POC line and label
+            if showPOC
+                secondaryPocLine = line.new(startBar, secondaryPocPrice, secondaryEndBar, secondaryPocPrice, color=secondaryColor, width=2, style=line.style_solid)
+                array.push(lines, secondaryPocLine)
+                // Add secondary POC label
+                secondaryPocLabel = label.new(secondaryEndBar, secondaryPocPrice, "POC: " + str.tostring(secondaryPocPrice, format.mintick) + " Vol: " + str.tostring(secondaryPocVol, format.volume), style=label.style_label_left, color=secondaryColor, textcolor=color.white, size=size.small)
+                array.push(labels, secondaryPocLabel)
 
     // Debug info
     if showDebug
