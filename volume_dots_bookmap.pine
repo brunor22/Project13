@@ -22,6 +22,7 @@ startHour = input.int(9, "Start Hour", minval=0, maxval=23, group="Display")
 startMinute = input.int(30, "Start Minute", minval=0, maxval=59, group="Display")
 endHour = input.int(16, "End Hour", minval=0, maxval=23, group="Display")
 endMinute = input.int(0, "End Minute", minval=0, maxval=59, group="Display")
+timezoneOption = input.string("Exchange", "Timezone", options=["Exchange", "UTC", "America/New_York", "America/Chicago", "Europe/London", "Asia/Tokyo", "Asia/Shanghai"], tooltip="Timezone for time range (Exchange uses symbol's exchange timezone)", group="Display")
 barsToShow = input.int(100, "Bars to Display (if not using time range)", minval=10, maxval=500, group="Display")
 priceResolution = input.int(10, "Price Levels per Bar", minval=5, maxval=50, tooltip="Number of price levels to analyze per bar", group="Display")
 minVolumeThreshold = input.float(0.05, "Min Volume % to Show", minval=0.01, maxval=0.5, step=0.01, tooltip="Minimum volume as % of max to display dot", group="Display")
@@ -32,8 +33,11 @@ minVolumeThreshold = input.float(0.05, "Min Volume % to Show", minval=0.01, maxv
 
 // Function to check if current bar is within time range
 isInTimeRange() =>
-    // Get current bar's time in minutes since midnight
-    currentTime = hour(time) * 60 + minute(time)
+    // Determine which timezone to use
+    tz = timezoneOption == "Exchange" ? syminfo.timezone : timezoneOption
+
+    // Get current bar's time in minutes since midnight (using selected timezone)
+    currentTime = hour(time, tz) * 60 + minute(time, tz)
     startTime = startHour * 60 + startMinute
     endTime = endHour * 60 + endMinute
 
