@@ -1,0 +1,211 @@
+//@version=5
+indicator("Volume Dots (Bookmap Style)", overlay=true, max_bars_back=500, max_lines_count=500, max_labels_count=500)
+
+// ============================================================================
+// INPUTS
+// ============================================================================
+
+// Volume dots settings
+dotSize = input.int(3, "Dot Size", minval=1, maxval=10, group="Volume Dots")
+volumeScale = input.float(1.0, "Volume Scale", minval=0.1, maxval=5.0, step=0.1, group="Volume Dots")
+showBuyVolume = input.bool(true, "Show Buy Volume", group="Volume Dots")
+showSellVolume = input.bool(true, "Show Sell Volume", group="Volume Dots")
+
+// Colors
+buyColor = input.color(color.new(color.green, 20), "Buy Volume Color", group="Colors")
+sellColor = input.color(color.new(color.red, 20), "Sell Volume Color", group="Colors")
+neutralColor = input.color(color.new(color.gray, 30), "Neutral Volume Color", group="Colors")
+
+// Display settings
+barsToShow = input.int(100, "Bars to Display", minval=10, maxval=500, group="Display")
+priceResolution = input.int(10, "Price Levels per Bar", minval=5, maxval=50, tooltip="Number of price levels to analyze per bar", group="Display")
+minVolumeThreshold = input.float(0.05, "Min Volume % to Show", minval=0.01, maxval=0.5, step=0.01, tooltip="Minimum volume as % of max to display dot", group="Display")
+
+// ============================================================================
+// VOLUME CALCULATION
+// ============================================================================
+
+// Estimate buy and sell volume based on price movement and volume
+var float buyVolume = 0.0
+var float sellVolume = 0.0
+
+// Calculate buy/sell pressure based on close relative to high/low
+rangeDist = high - low
+if rangeDist > 0
+    buyRatio = (close - low) / rangeDist
+    sellRatio = (high - close) / rangeDist
+
+    buyVolume := volume * buyRatio
+    sellVolume := volume * sellRatio
+else
+    // No range, split evenly
+    buyVolume := volume / 2
+    sellVolume := volume / 2
+
+// Calculate delta
+volumeDelta = buyVolume - sellVolume
+
+// ============================================================================
+// PRICE LEVEL ANALYSIS
+// ============================================================================
+
+// Function to calculate volume at different price levels within a bar
+volumeAtLevel(float priceLevel, float barHigh, float barLow, float barClose, float barOpen, float barVolume) =>
+    float levelVolume = 0.0
+
+    if barHigh != barLow
+        // Determine if price level was touched during the bar
+        if priceLevel >= barLow and priceLevel <= barHigh
+            // Estimate volume distribution (simplified model)
+            // More volume near close and areas of price action
+            distanceToClose = math.abs(priceLevel - barClose)
+            distanceToOpen = math.abs(priceLevel - barOpen)
+            maxDistance = barHigh - barLow
+
+            // Weight by inverse distance to close (more volume near close)
+            weight = 1.0 - (distanceToClose / maxDistance) * 0.5
+            levelVolume := barVolume * weight / priceResolution
+
+    levelVolume
+
+// ============================================================================
+// PLOTTING VOLUME DOTS
+// ============================================================================
+
+// Track maximum volume for scaling
+var float maxVolInPeriod = 0.0
+maxVolInPeriod := math.max(volume, maxVolInPeriod * 0.99) // Decay slowly
+
+// Only process recent bars to avoid performance issues
+if bar_index >= last_bar_index - barsToShow
+
+    // Calculate tick size for price levels
+    tickRange = high - low
+    tickSize = tickRange / priceResolution
+
+    // Analyze volume at each price level
+    for i = 0 to priceResolution - 1
+        priceLevel = low + (tickSize * i) + (tickSize / 2)
+
+        // Calculate estimated volume at this price level
+        levelVol = volumeAtLevel(priceLevel, high, low, close, open, volume)
+
+        // Determine if this is buy or sell volume based on price position
+        isBuyLevel = priceLevel <= close
+
+        // Calculate volume percentage
+        volPercent = levelVol / maxVolInPeriod
+
+        // Only show if above threshold
+        if volPercent >= minVolumeThreshold
+
+            // Calculate dot size based on volume
+            scaledSize = math.round(math.sqrt(volPercent * volumeScale) * dotSize)
+            scaledSize := math.max(scaledSize, 1)
+
+            // Determine color
+            dotColor = neutralColor
+            if isBuyLevel and showBuyVolume
+                dotColor := buyColor
+            else if not isBuyLevel and showSellVolume
+                dotColor := sellColor
+
+            // Plot the dot using a label
+            if (isBuyLevel and showBuyVolume) or (not isBuyLevel and showSellVolume)
+                label.new(
+                     bar_index,
+                     priceLevel,
+                     "●",
+                     color=color.new(color.white, 100),
+                     textcolor=dotColor,
+                     style=label.style_none,
+                     size=scaledSize <= 2 ? size.tiny : scaledSize <= 4 ? size.small : scaledSize <= 6 ? size.normal : size.large,
+                     textalign=text.align_center
+                 )
+
+// ============================================================================
+// VOLUME PROFILE DISPLAY (Alternative visualization)
+// ============================================================================
+
+showProfile = input.bool(false, "Show Volume Profile", group="Volume Profile")
+profileWidth = input.int(3, "Profile Width (bars)", minval=1, maxval=10, group="Volume Profile")
+
+if showProfile and bar_index >= last_bar_index - barsToShow
+
+    // Create volume profile bars at price levels
+    for i = 0 to priceResolution - 1
+        priceLevel = low + (high - low) * i / priceResolution
+        levelVol = volumeAtLevel(priceLevel, high, low, close, open, volume)
+
+        if levelVol > 0
+            volPercent = levelVol / maxVolInPeriod
+
+            if volPercent >= minVolumeThreshold
+                // Draw horizontal line representing volume at this price
+                barWidth = volPercent * volumeScale * profileWidth
+
+                isBuy = priceLevel <= close
+                profileColor = isBuy ? buyColor : sellColor
+
+                if (isBuy and showBuyVolume) or (not isBuy and showSellVolume)
+                    line.new(
+                         bar_index,
+                         priceLevel,
+                         bar_index + int(barWidth),
+                         priceLevel,
+                         color=profileColor,
+                         width=2
+                     )
+
+// ============================================================================
+// INFORMATION DISPLAY
+// ============================================================================
+
+// Create info table
+var table infoTable = table.new(position.top_right, 2, 6, bgcolor=color.new(color.black, 85), border_width=1)
+
+if barstate.islast
+
+    table.cell(infoTable, 0, 0, "Buy Volume:", text_color=buyColor, text_size=size.small)
+    table.cell(infoTable, 1, 0, str.tostring(buyVolume, format.volume), text_color=color.white, text_size=size.small)
+
+    table.cell(infoTable, 0, 1, "Sell Volume:", text_color=sellColor, text_size=size.small)
+    table.cell(infoTable, 1, 1, str.tostring(sellVolume, format.volume), text_color=color.white, text_size=size.small)
+
+    table.cell(infoTable, 0, 2, "Delta:", text_color=color.yellow, text_size=size.small)
+    deltaColor = volumeDelta > 0 ? buyColor : sellColor
+    table.cell(infoTable, 1, 2, str.tostring(volumeDelta, format.volume), text_color=deltaColor, text_size=size.small)
+
+    table.cell(infoTable, 0, 3, "Total Volume:", text_color=color.gray, text_size=size.small)
+    table.cell(infoTable, 1, 3, str.tostring(volume, format.volume), text_color=color.white, text_size=size.small)
+
+    table.cell(infoTable, 0, 4, "Price Range:", text_color=color.gray, text_size=size.small)
+    table.cell(infoTable, 1, 4, str.tostring(high - low, format.mintick), text_color=color.white, text_size=size.small)
+
+    // Buy/Sell pressure
+    pressure = buyVolume > sellVolume ? "BULLISH" : "BEARISH"
+    pressureColor = buyVolume > sellVolume ? buyColor : sellColor
+    table.cell(infoTable, 0, 5, "Pressure:", text_color=color.gray, text_size=size.small)
+    table.cell(infoTable, 1, 5, pressure, text_color=pressureColor, text_size=size.small)
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+
+// High volume alert
+highVolThreshold = input.float(2.0, "High Volume Alert (x avg)", minval=1.0, maxval=10.0, group="Alerts")
+avgVol = ta.sma(volume, 20)
+isHighVolume = volume > avgVol * highVolThreshold
+
+// Delta alerts
+strongBuyDelta = volumeDelta > volume * 0.6
+strongSellDelta = volumeDelta < -(volume * 0.6)
+
+alertcondition(isHighVolume, title="High Volume", message="High volume detected!")
+alertcondition(strongBuyDelta, title="Strong Buy Delta", message="Strong buying pressure detected!")
+alertcondition(strongSellDelta, title="Strong Sell Delta", message="Strong selling pressure detected!")
+
+// Plot volume delta as background histogram (optional)
+showHistogram = input.bool(true, "Show Delta Histogram", group="Display")
+if showHistogram
+    plot(volumeDelta, title="Volume Delta", style=plot.style_histogram, color=volumeDelta > 0 ? buyColor : sellColor)
