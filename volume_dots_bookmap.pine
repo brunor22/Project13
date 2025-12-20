@@ -17,9 +17,34 @@ sellColor = input.color(color.new(color.red, 20), "Sell Volume Color", group="Co
 neutralColor = input.color(color.new(color.gray, 30), "Neutral Volume Color", group="Colors")
 
 // Display settings
-barsToShow = input.int(100, "Bars to Display", minval=10, maxval=500, group="Display")
+useTimeRange = input.bool(true, "Use Time Range", group="Display")
+startHour = input.int(9, "Start Hour", minval=0, maxval=23, group="Display")
+startMinute = input.int(30, "Start Minute", minval=0, maxval=59, group="Display")
+endHour = input.int(16, "End Hour", minval=0, maxval=23, group="Display")
+endMinute = input.int(0, "End Minute", minval=0, maxval=59, group="Display")
+barsToShow = input.int(100, "Bars to Display (if not using time range)", minval=10, maxval=500, group="Display")
 priceResolution = input.int(10, "Price Levels per Bar", minval=5, maxval=50, tooltip="Number of price levels to analyze per bar", group="Display")
 minVolumeThreshold = input.float(0.05, "Min Volume % to Show", minval=0.01, maxval=0.5, step=0.01, tooltip="Minimum volume as % of max to display dot", group="Display")
+
+// ============================================================================
+// TIME RANGE CALCULATION
+// ============================================================================
+
+// Function to check if current bar is within time range
+isInTimeRange() =>
+    // Get current bar's time in minutes since midnight
+    currentTime = hour(time) * 60 + minute(time)
+    startTime = startHour * 60 + startMinute
+    endTime = endHour * 60 + endMinute
+
+    // Handle cases where end time is before start time (crosses midnight)
+    if endTime < startTime
+        currentTime >= startTime or currentTime <= endTime
+    else
+        currentTime >= startTime and currentTime <= endTime
+
+// Determine if we should show dots for this bar
+showThisBar = useTimeRange ? isInTimeRange() : bar_index >= last_bar_index - barsToShow
 
 // ============================================================================
 // VOLUME CALCULATION
@@ -76,8 +101,8 @@ volumeAtLevel(float priceLevel, float barHigh, float barLow, float barClose, flo
 var float maxVolInPeriod = 0.0
 maxVolInPeriod := math.max(volume, maxVolInPeriod * 0.99) // Decay slowly
 
-// Only process recent bars to avoid performance issues
-if bar_index >= last_bar_index - barsToShow
+// Only process bars within time range (or recent bars if not using time range)
+if showThisBar
 
     // Calculate tick size for price levels
     tickRange = high - low
@@ -130,7 +155,7 @@ if bar_index >= last_bar_index - barsToShow
 showProfile = input.bool(false, "Show Volume Profile", group="Volume Profile")
 profileWidth = input.int(3, "Profile Width (bars)", minval=1, maxval=10, group="Volume Profile")
 
-if showProfile and bar_index >= last_bar_index - barsToShow
+if showProfile and showThisBar
 
     // Create volume profile bars at price levels
     for i = 0 to priceResolution - 1
