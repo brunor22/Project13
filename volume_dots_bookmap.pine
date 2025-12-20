@@ -207,5 +207,4 @@ alertcondition(strongSellDelta, title="Strong Sell Delta", message="Strong selli
 
 // Plot volume delta as background histogram (optional)
 showHistogram = input.bool(true, "Show Delta Histogram", group="Display")
-if showHistogram
-    plot(volumeDelta, title="Volume Delta", style=plot.style_histogram, color=volumeDelta > 0 ? buyColor : sellColor)
+plot(showHistogram ? volumeDelta : na, title="Volume Delta", style=plot.style_histogram, color=volumeDelta > 0 ? buyColor : sellColor)
