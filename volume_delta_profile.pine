@@ -21,8 +21,15 @@ profileWidth = input.int(10, "Profile Width (bars)", minval=5, maxval=400, toolt
 profileOffset = input.int(0, "Profile Offset (bars)", minval=0, maxval=500, tooltip="Shift the profile to the right by this many bars")
 
 // Delta display options
-deltaMode = input.string("Separate", "Delta Display Mode", options=["Separate", "Stacked", "Net Only"], tooltip="Separate: Show buy/sell on opposite sides | Stacked: Stack buy/sell from center | Net Only: Show only net delta")
+deltaMode = input.string("Separate", "Delta Display Mode", options=["Separate", "Stacked"], tooltip="Separate: Show buy/sell on opposite sides | Stacked: Stack buy/sell from center")
 showZeroLine = input.bool(true, "Show Zero Line", tooltip="Display center line for delta profile")
+
+// Net Only profile
+showNetOnly = input.bool(false, "Show Net Only Profile", tooltip="Display net delta profile alongside the main profile", group="Net Only Profile")
+netOnlyWidth = input.int(10, "Net Only Width (bars)", minval=1, maxval=400, tooltip="Width of net only profile bars", group="Net Only Profile")
+netOnlyOffset = input.int(15, "Net Only Offset from Primary", minval=-200, maxval=500, tooltip="Position relative to primary profile start", group="Net Only Profile")
+netOnlyBuyColor = input.color(color.new(color.lime, 60), "Net Buy Color", group="Net Only Profile")
+netOnlySellColor = input.color(color.new(color.fuchsia, 60), "Net Sell Color", group="Net Only Profile")
 
 // Volume filter
 minDeltaThreshold = input.float(0, "Min Delta Threshold", minval=0, tooltip="Only display rows with absolute delta greater than or equal to this value. Set to 0 to show all rows.")
@@ -379,23 +386,6 @@ if barstate.islast
                             b = box.new(sellX1, rowLo, centerBar, rowHi, border_color=color.new(sellColor, 30), bgcolor=boxColor, border_width=1)
                             array.push(boxes, b)
 
-                    else // "Net Only"
-                        // Draw net delta only
-                        if d > 0
-                            width = math.max(1, int((d / combinedMaxBuy) * profileWidth))
-                            x2 = profileStartBar + width
-                            intensity = int((d / maxAbsDelta) * 100)
-                            boxColor = color.new(buyColor, 100 - intensity)
-                            b = box.new(profileStartBar, rowLo, x2, rowHi, border_color=color.new(buyColor, 30), bgcolor=boxColor, border_width=1)
-                            array.push(boxes, b)
-                        else if d < 0
-                            width = math.max(1, int((math.abs(d) / combinedMaxSell) * profileWidth))
-                            x1 = profileStartBar - width
-                            intensity = int((math.abs(d) / maxAbsDelta) * 100)
-                            boxColor = color.new(sellColor, 100 - intensity)
-                            b = box.new(x1, rowLo, profileStartBar, rowHi, border_color=color.new(sellColor, 30), bgcolor=boxColor, border_width=1)
-                            array.push(boxes, b)
-
             // Draw POC, VAH, VAL lines
             if showPOC
                 pocLine = line.new(startBar, pocPrice, endBar, pocPrice, color=pocColor, width=2, style=line.style_solid)
@@ -416,6 +406,46 @@ if barstate.islast
                 valDelta = array.get(delta, vaLo)
                 valLabel = label.new(endBar+2, valPrice, "VAL: " + str.tostring(valPrice, format.mintick) + " Δ: " + str.tostring(valDelta, format.volume), style=label.style_label_left, color=valColor, textcolor=color.white, size=size.small)
                 array.push(labels, valLabel)
+
+        // ========== DRAW NET ONLY PROFILE ==========
+        if showNetOnly and (combinedMaxBuy > 0 or combinedMaxSell > 0)
+            netOnlyStartBar = profileStartBar + netOnlyOffset
+            netOnlyEndBar = netOnlyStartBar + netOnlyWidth
+
+            // Draw net only zero line
+            if showZeroLine
+                netZeroLine = line.new(netOnlyStartBar, lo, netOnlyStartBar, hi, color=zeroLineColor, width=1, style=line.style_solid, extend=extend.none)
+                array.push(lines, netZeroLine)
+
+            // Draw net delta bars
+            for r = 0 to actualRows - 1
+                d = array.get(delta, r)
+
+                // Apply delta threshold filter
+                if math.abs(d) >= minDeltaThreshold
+                    rowLo = lo + r * rowHeight
+                    rowHi = lo + (r + 1) * rowHeight
+
+                    // Draw net delta only
+                    if d > 0
+                        width = math.max(1, int((d / combinedMaxBuy) * netOnlyWidth))
+                        x2 = netOnlyStartBar + width
+                        intensity = int((d / maxAbsDelta) * 100)
+                        boxColor = color.new(netOnlyBuyColor, 100 - intensity)
+                        b = box.new(netOnlyStartBar, rowLo, x2, rowHi, border_color=color.new(netOnlyBuyColor, 30), bgcolor=boxColor, border_width=1)
+                        array.push(boxes, b)
+                    else if d < 0
+                        width = math.max(1, int((math.abs(d) / combinedMaxSell) * netOnlyWidth))
+                        x1 = netOnlyStartBar - width
+                        intensity = int((math.abs(d) / maxAbsDelta) * 100)
+                        boxColor = color.new(netOnlySellColor, 100 - intensity)
+                        b = box.new(x1, rowLo, netOnlyStartBar, rowHi, border_color=color.new(netOnlySellColor, 30), bgcolor=boxColor, border_width=1)
+                        array.push(boxes, b)
+
+            // Draw Net Only POC line
+            if showPOC
+                netPocLine = line.new(startBar, pocPrice, netOnlyEndBar, pocPrice, color=pocColor, width=2, style=line.style_solid)
+                array.push(lines, netPocLine)
 
         // ========== DRAW SECONDARY PROFILE ==========
         if showSecondary and (combinedMaxBuy > 0 or combinedMaxSell > 0)
