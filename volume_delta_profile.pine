@@ -118,6 +118,11 @@ if barstate.islast
         actualRows := rows
         rowHeight := (hi - lo) / rows
 
+    // Declare variables at higher scope for debug table access
+    maxBuyVol = 0.0
+    maxSellVol = 0.0
+    pocDelta = 0.0
+
     if rowHeight > 0
         // Volume delta arrays - separate buy and sell volume
         buyVol = array.new_float(actualRows, 0.0)
@@ -168,8 +173,6 @@ if barstate.islast
 
         // Calculate delta and find max values
         delta = array.new_float(actualRows, 0.0)
-        maxBuyVol = 0.0
-        maxSellVol = 0.0
         maxAbsDelta = 0.0
 
         for r = 0 to actualRows - 1
@@ -192,7 +195,7 @@ if barstate.islast
                 pocIdx := r
 
         pocPrice = lo + pocIdx * rowHeight + rowHeight / 2
-        pocDelta = array.get(delta, pocIdx)
+        pocDelta := array.get(delta, pocIdx)
 
         // Calculate value area based on total volume
         totalVolArray = array.new_float(actualRows, 0.0)
