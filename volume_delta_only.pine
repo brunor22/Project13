@@ -328,14 +328,14 @@ if barstate.islast
                     rowLo = lo + r * rowHeight
                     rowHi = lo + (r + 1) * rowHeight
 
-                    // Draw net delta only
+                    // Draw net delta only - both extend to the left
                     if d > 0
-                        // Positive delta - draw to the right
+                        // Positive delta - draw to the left
                         width = math.max(1, int((d / combinedMaxAbsDelta) * profileWidth))
-                        x2 = profileStartBar + width
+                        x1 = profileStartBar - width
                         intensity = int((d / maxAbsDelta) * 100)
                         boxColor = color.new(positiveColor, 100 - intensity)
-                        b = box.new(profileStartBar, rowLo, x2, rowHi, border_color=color.new(positiveColor, 30), bgcolor=boxColor, border_width=1)
+                        b = box.new(x1, rowLo, profileStartBar, rowHi, border_color=color.new(positiveColor, 30), bgcolor=boxColor, border_width=1)
                         array.push(boxes, b)
                     else if d < 0
                         // Negative delta - draw to the left
@@ -384,13 +384,13 @@ if barstate.islast
                     rowLo = lo + r * rowHeight
                     rowHi = lo + (r + 1) * rowHeight
 
-                    // Draw net delta only
+                    // Draw net delta only - both extend to the left
                     if d > 0
                         width = math.max(1, int((d / combinedMaxAbsDelta) * secondaryWidth))
-                        x2 = secondaryStartBar + width
+                        x1 = secondaryStartBar - width
                         intensity = int((d / secondaryMaxAbsDelta) * 100)
                         boxColor = color.new(secondaryPositiveColor, 100 - intensity)
-                        b = box.new(secondaryStartBar, rowLo, x2, rowHi, border_color=color.new(secondaryPositiveColor, 30), bgcolor=boxColor, border_width=1)
+                        b = box.new(x1, rowLo, secondaryStartBar, rowHi, border_color=color.new(secondaryPositiveColor, 30), bgcolor=boxColor, border_width=1)
                         array.push(secondaryBoxes, b)
                     else if d < 0
                         width = math.max(1, int((math.abs(d) / combinedMaxAbsDelta) * secondaryWidth))
