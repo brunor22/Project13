@@ -1,0 +1,430 @@
+//@version=6
+indicator("Volume Delta Profile", overlay=true, max_bars_back=5000, max_lines_count=500, max_boxes_count=500)
+
+// ========== INPUTS ==========
+
+// Notes: The code will automatically skip rows when needed, but you'll get the best results by keeping rows under:
+//          490 rows for single profile
+//          245 rows for dual profiles
+
+useTimeRange = input.bool(false, "Use Time Range", tooltip="If true, use start time. If false, use bar lookback")
+startTime = input.time(timestamp("2024-01-01 00:00 +0000"), "Start Time", tooltip="Profile start time (only used if 'Use Time Range' is enabled)")
+lookback = input.int(100, "Lookback Bars", minval=20, maxval=500, tooltip="Number of bars (only used if 'Use Time Range' is disabled)")
+
+// Row calculation method
+useTicksPerRow = input.bool(false, "Use Ticks Per Row", tooltip="If true, use ticks per row. If false, use number of rows")
+rows = input.int(24, "Number of Rows", minval=10, maxval=100, tooltip="Number of price levels (only used if 'Use Ticks Per Row' is disabled)")
+ticksPerRow = input.float(1.0, "Ticks Per Row", minval=0.01, step=0.01, tooltip="Price increment per row (only used if 'Use Ticks Per Row' is enabled)")
+
+valueArea = input.float(70, "Value Area %", minval=50, maxval=100)
+profileWidth = input.int(10, "Profile Width (bars)", minval=5, maxval=400, tooltip="Width of the volume delta profile bars")
+profileOffset = input.int(0, "Profile Offset (bars)", minval=0, maxval=500, tooltip="Shift the profile to the right by this many bars")
+
+// Delta display options
+showZeroLine = input.bool(true, "Show Zero Line", tooltip="Display center line for delta profile")
+
+// Secondary profile
+showSecondary = input.bool(false, "Show Secondary Profile", tooltip="Display a second profile from a different time period", group="Secondary Profile")
+useSecondaryTimeRange = input.bool(true, "Use Time Range", tooltip="If true, use start time. If false, use bar lookback", group="Secondary Profile")
+secondaryStartTime = input.time(timestamp("2024-01-01 00:00 +0000"), "Start Time", tooltip="Secondary profile start time", group="Secondary Profile")
+secondaryLookback = input.int(50, "Lookback Bars", minval=20, maxval=500, tooltip="Number of bars for secondary profile", group="Secondary Profile")
+secondaryWidth = input.int(5, "Secondary Width (bars)", minval=1, maxval=200, tooltip="Width of secondary profile bars", group="Secondary Profile")
+secondaryOffsetFromPrimary = input.int(0, "Offset from Primary", minval=-200, maxval=200, tooltip="Position relative to primary profile start (negative = left, positive = right)", group="Secondary Profile")
+secondaryPositiveColor = input.color(color.new(color.blue, 70), "Secondary Positive Delta Color", group="Secondary Profile")
+secondaryNegativeColor = input.color(color.new(color.purple, 70), "Secondary Negative Delta Color", group="Secondary Profile")
+
+// Volume filter
+minDeltaThreshold = input.float(0, "Min Delta Threshold", minval=0, tooltip="Only display rows with absolute delta greater than or equal to this value. Set to 0 to show all rows.")
+
+showDebug = input.bool(false, "Show Debug Info", tooltip="Display calculation details for troubleshooting")
+
+// Display options
+showPOC = input.bool(true, "Show POC", inline="1", tooltip="Point of Control - highest delta volume")
+pocColor = input.color(color.yellow, "", inline="1")
+showVAH = input.bool(true, "Show VAH", inline="2")
+vahColor = input.color(color.green, "", inline="2")
+showVAL = input.bool(true, "Show VAL", inline="3")
+valColor = input.color(color.blue, "", inline="3")
+positiveColor = input.color(color.new(color.green, 60), "Positive Delta Color")
+negativeColor = input.color(color.new(color.red, 60), "Negative Delta Color")
+zeroLineColor = input.color(color.new(color.gray, 50), "Zero Line Color")
+
+// ========== STORAGE ==========
+var box[] boxes = array.new_box()
+var line[] lines = array.new_line()
+var label[] labels = array.new_label()
+var box[] secondaryBoxes = array.new_box()
+
+// ========== FUNCTIONS ==========
+deleteDrawings() =>
+    for b in boxes
+        box.delete(b)
+    array.clear(boxes)
+    for l in lines
+        line.delete(l)
+    array.clear(lines)
+    for lbl in labels
+        label.delete(lbl)
+    array.clear(labels)
+    for b in secondaryBoxes
+        box.delete(b)
+    array.clear(secondaryBoxes)
+
+// Determine if a bar is bullish (buying) or bearish (selling)
+isBullish(idx) =>
+    close[idx] > open[idx]
+
+isBearish(idx) =>
+    close[idx] < open[idx]
+
+// ========== MAIN LOGIC ==========
+if barstate.islast
+    deleteDrawings()
+
+    // Calculate lookback range
+    barsBack = 0
+    if useTimeRange
+        startBarIndex = 0
+        maxSearch = math.min(bar_index, 4999)
+        for i = 0 to maxSearch
+            if time[i] >= startTime
+                startBarIndex := i
+        barsBack := startBarIndex
+        if barsBack <= 0
+            barsBack := math.min(lookback - 1, bar_index)
+        barsBack := math.min(barsBack, 4999)
+    else
+        barsBack := math.min(lookback - 1, bar_index)
+
+    // Find price range
+    hi = high[0]
+    lo = low[0]
+    for i = 1 to barsBack
+        if not na(high[i])
+            hi := math.max(hi, high[i])
+            lo := math.min(lo, low[i])
+
+    // Calculate number of rows and row height
+    actualRows = 0
+    rowHeight = 0.0
+
+    if useTicksPerRow
+        priceRange = hi - lo
+        actualRows := math.max(1, int(priceRange / ticksPerRow))
+        actualRows := math.min(actualRows, 500)
+        rowHeight := priceRange / actualRows
+    else
+        actualRows := rows
+        rowHeight := (hi - lo) / rows
+
+    // Declare variables at higher scope for debug table access
+    maxAbsDelta = 0.0
+    pocDelta = 0.0
+
+    if rowHeight > 0
+        // Volume delta arrays - separate buy and sell volume
+        buyVol = array.new_float(actualRows, 0.0)
+        sellVol = array.new_float(actualRows, 0.0)
+
+        // Accumulate buy and sell volume
+        for i = 0 to barsBack
+            barHi = high[i]
+            barLo = low[i]
+            barVol = volume[i]
+            barRange = barHi - barLo
+
+            // Determine if bar is bullish or bearish
+            isBuy = isBullish(i)
+            isSell = isBearish(i)
+
+            if barRange > 0
+                // Distribute volume proportionally
+                for r = 0 to actualRows - 1
+                    rowLo = lo + r * rowHeight
+                    rowHi = lo + (r + 1) * rowHeight
+
+                    if barLo < rowHi and barHi > rowLo
+                        overlap = math.min(barHi, rowHi) - math.max(barLo, rowLo)
+                        proportion = overlap / barRange
+                        volToAdd = barVol * proportion
+
+                        if isBuy
+                            array.set(buyVol, r, array.get(buyVol, r) + volToAdd)
+                        else if isSell
+                            array.set(sellVol, r, array.get(sellVol, r) + volToAdd)
+                        else
+                            // Neutral bar - split volume 50/50
+                            array.set(buyVol, r, array.get(buyVol, r) + volToAdd / 2)
+                            array.set(sellVol, r, array.get(sellVol, r) + volToAdd / 2)
+            else
+                // Zero-range bar
+                rowIdx = math.floor((barLo - lo) / rowHeight)
+                rowIdx := math.max(0, math.min(actualRows - 1, rowIdx))
+
+                if isBuy
+                    array.set(buyVol, rowIdx, array.get(buyVol, rowIdx) + barVol)
+                else if isSell
+                    array.set(sellVol, rowIdx, array.get(sellVol, rowIdx) + barVol)
+                else
+                    array.set(buyVol, rowIdx, array.get(buyVol, rowIdx) + barVol / 2)
+                    array.set(sellVol, rowIdx, array.get(sellVol, rowIdx) + barVol / 2)
+
+        // Calculate delta and find max values
+        delta = array.new_float(actualRows, 0.0)
+
+        for r = 0 to actualRows - 1
+            buy = array.get(buyVol, r)
+            sell = array.get(sellVol, r)
+            d = buy - sell
+            array.set(delta, r, d)
+            maxAbsDelta := math.max(maxAbsDelta, math.abs(d))
+
+        // Find POC (highest total volume)
+        pocIdx = 0
+        pocTotalVol = 0.0
+        for r = 0 to actualRows - 1
+            totalVol = array.get(buyVol, r) + array.get(sellVol, r)
+            if totalVol > pocTotalVol
+                pocTotalVol := totalVol
+                pocIdx := r
+
+        pocPrice = lo + pocIdx * rowHeight + rowHeight / 2
+        pocDelta := array.get(delta, pocIdx)
+
+        // Calculate value area based on total volume
+        totalVolArray = array.new_float(actualRows, 0.0)
+        for r = 0 to actualRows - 1
+            array.set(totalVolArray, r, array.get(buyVol, r) + array.get(sellVol, r))
+
+        totalVol = array.sum(totalVolArray)
+        targetVol = totalVol * valueArea / 100
+
+        vaVol = array.get(totalVolArray, pocIdx)
+        vaHi = pocIdx
+        vaLo = pocIdx
+
+        while vaVol < targetVol and (vaHi < actualRows - 1 or vaLo > 0)
+            hiVol = vaHi < actualRows - 1 ? array.get(totalVolArray, vaHi + 1) : 0
+            loVol = vaLo > 0 ? array.get(totalVolArray, vaLo - 1) : 0
+
+            if hiVol >= loVol and vaHi < actualRows - 1
+                vaHi += 1
+                vaVol += hiVol
+            else if vaLo > 0
+                vaLo -= 1
+                vaVol += loVol
+            else
+                break
+
+        vahPrice = lo + vaHi * rowHeight + rowHeight / 2
+        valPrice = lo + vaLo * rowHeight + rowHeight / 2
+
+        // Calculate profile positions
+        profileStartBar = bar_index + profileOffset
+        startBar = bar_index - barsBack
+        endBar = profileStartBar + profileWidth
+
+        // ========== SECONDARY PROFILE CALCULATION ==========
+        secondaryDelta = array.new_float(actualRows, 0.0)
+        secondaryMaxAbsDelta = 0.0
+        secondaryPocPrice = 0.0
+        secondaryPocDelta = 0.0
+        combinedMaxAbsDelta = maxAbsDelta
+
+        if showSecondary
+            // Calculate secondary lookback range
+            secondaryBarsBack = 0
+            if useSecondaryTimeRange
+                secondaryStartBarIndex = 0
+                maxSecondarySearch = math.min(bar_index, 4999)
+                for i = 0 to maxSecondarySearch
+                    if time[i] >= secondaryStartTime
+                        secondaryStartBarIndex := i
+                secondaryBarsBack := secondaryStartBarIndex
+                if secondaryBarsBack <= 0
+                    secondaryBarsBack := math.min(secondaryLookback - 1, bar_index)
+                secondaryBarsBack := math.min(secondaryBarsBack, 4999)
+            else
+                secondaryBarsBack := math.min(secondaryLookback - 1, bar_index)
+
+            // Secondary volume arrays
+            secondaryBuyVol = array.new_float(actualRows, 0.0)
+            secondarySellVol = array.new_float(actualRows, 0.0)
+
+            // Accumulate secondary buy and sell volume
+            for i = 0 to secondaryBarsBack
+                barHi = high[i]
+                barLo = low[i]
+                barVol = volume[i]
+                barRange = barHi - barLo
+
+                isBuy = isBullish(i)
+                isSell = isBearish(i)
+
+                if barRange > 0
+                    for r = 0 to actualRows - 1
+                        rowLo = lo + r * rowHeight
+                        rowHi = lo + (r + 1) * rowHeight
+
+                        if barLo < rowHi and barHi > rowLo
+                            overlap = math.min(barHi, rowHi) - math.max(barLo, rowLo)
+                            proportion = overlap / barRange
+                            volToAdd = barVol * proportion
+
+                            if isBuy
+                                array.set(secondaryBuyVol, r, array.get(secondaryBuyVol, r) + volToAdd)
+                            else if isSell
+                                array.set(secondarySellVol, r, array.get(secondarySellVol, r) + volToAdd)
+                            else
+                                array.set(secondaryBuyVol, r, array.get(secondaryBuyVol, r) + volToAdd / 2)
+                                array.set(secondarySellVol, r, array.get(secondarySellVol, r) + volToAdd / 2)
+                else
+                    rowIdx = math.floor((barLo - lo) / rowHeight)
+                    rowIdx := math.max(0, math.min(actualRows - 1, rowIdx))
+
+                    if isBuy
+                        array.set(secondaryBuyVol, rowIdx, array.get(secondaryBuyVol, rowIdx) + barVol)
+                    else if isSell
+                        array.set(secondarySellVol, rowIdx, array.get(secondarySellVol, rowIdx) + barVol)
+                    else
+                        array.set(secondaryBuyVol, rowIdx, array.get(secondaryBuyVol, rowIdx) + barVol / 2)
+                        array.set(secondarySellVol, rowIdx, array.get(secondarySellVol, rowIdx) + barVol / 2)
+
+            // Calculate secondary delta and max values
+            for r = 0 to actualRows - 1
+                buy = array.get(secondaryBuyVol, r)
+                sell = array.get(secondarySellVol, r)
+                d = buy - sell
+                array.set(secondaryDelta, r, d)
+                secondaryMaxAbsDelta := math.max(secondaryMaxAbsDelta, math.abs(d))
+
+            // Find secondary POC
+            secondaryPocIdx = 0
+            secondaryPocTotalVol = 0.0
+            for r = 0 to actualRows - 1
+                totalVol = array.get(secondaryBuyVol, r) + array.get(secondarySellVol, r)
+                if totalVol > secondaryPocTotalVol
+                    secondaryPocTotalVol := totalVol
+                    secondaryPocIdx := r
+
+            secondaryPocPrice := lo + secondaryPocIdx * rowHeight + rowHeight / 2
+            secondaryPocDelta := array.get(secondaryDelta, secondaryPocIdx)
+
+            // Combined max for scaling
+            combinedMaxAbsDelta := math.max(maxAbsDelta, secondaryMaxAbsDelta)
+
+        // Draw zero line if enabled
+        if showZeroLine
+            zeroLine = line.new(profileStartBar, lo, profileStartBar, hi, color=zeroLineColor, width=1, style=line.style_solid, extend=extend.none)
+            array.push(lines, zeroLine)
+
+        // ========== DRAW PRIMARY PROFILE (NET DELTA ONLY) ==========
+        if combinedMaxAbsDelta > 0
+            for r = 0 to actualRows - 1
+                d = array.get(delta, r)
+
+                // Apply delta threshold filter
+                if math.abs(d) >= minDeltaThreshold
+                    rowLo = lo + r * rowHeight
+                    rowHi = lo + (r + 1) * rowHeight
+
+                    // Draw net delta only
+                    if d > 0
+                        // Positive delta - draw to the right
+                        width = math.max(1, int((d / combinedMaxAbsDelta) * profileWidth))
+                        x2 = profileStartBar + width
+                        intensity = int((d / maxAbsDelta) * 100)
+                        boxColor = color.new(positiveColor, 100 - intensity)
+                        b = box.new(profileStartBar, rowLo, x2, rowHi, border_color=color.new(positiveColor, 30), bgcolor=boxColor, border_width=1)
+                        array.push(boxes, b)
+                    else if d < 0
+                        // Negative delta - draw to the left
+                        width = math.max(1, int((math.abs(d) / combinedMaxAbsDelta) * profileWidth))
+                        x1 = profileStartBar - width
+                        intensity = int((math.abs(d) / maxAbsDelta) * 100)
+                        boxColor = color.new(negativeColor, 100 - intensity)
+                        b = box.new(x1, rowLo, profileStartBar, rowHi, border_color=color.new(negativeColor, 30), bgcolor=boxColor, border_width=1)
+                        array.push(boxes, b)
+
+            // Draw POC, VAH, VAL lines
+            if showPOC
+                pocLine = line.new(startBar, pocPrice, endBar, pocPrice, color=pocColor, width=2, style=line.style_solid)
+                array.push(lines, pocLine)
+                pocLabel = label.new(endBar+2, pocPrice, "POC: " + str.tostring(pocPrice, format.mintick) + " Δ: " + str.tostring(pocDelta, format.volume), style=label.style_label_left, color=pocColor, textcolor=color.white, size=size.small)
+                array.push(labels, pocLabel)
+
+            if showVAH
+                vahLine = line.new(startBar, vahPrice, endBar, vahPrice, color=vahColor, width=1, style=line.style_dashed)
+                array.push(lines, vahLine)
+                vahDelta = array.get(delta, vaHi)
+                vahLabel = label.new(endBar+2, vahPrice, "VAH: " + str.tostring(vahPrice, format.mintick) + " Δ: " + str.tostring(vahDelta, format.volume), style=label.style_label_left, color=vahColor, textcolor=color.white, size=size.small)
+                array.push(labels, vahLabel)
+
+            if showVAL
+                valLine = line.new(startBar, valPrice, endBar, valPrice, color=valColor, width=1, style=line.style_dashed)
+                array.push(lines, valLine)
+                valDelta = array.get(delta, vaLo)
+                valLabel = label.new(endBar+2, valPrice, "VAL: " + str.tostring(valPrice, format.mintick) + " Δ: " + str.tostring(valDelta, format.volume), style=label.style_label_left, color=valColor, textcolor=color.white, size=size.small)
+                array.push(labels, valLabel)
+
+        // ========== DRAW SECONDARY PROFILE (NET DELTA ONLY) ==========
+        if showSecondary and combinedMaxAbsDelta > 0
+            secondaryStartBar = profileStartBar + secondaryOffsetFromPrimary
+            secondaryEndBar = secondaryStartBar + secondaryWidth
+
+            // Draw secondary zero line
+            if showZeroLine
+                secZeroLine = line.new(secondaryStartBar, lo, secondaryStartBar, hi, color=zeroLineColor, width=1, style=line.style_solid, extend=extend.none)
+                array.push(lines, secZeroLine)
+
+            for r = 0 to actualRows - 1
+                d = array.get(secondaryDelta, r)
+
+                if math.abs(d) >= minDeltaThreshold
+                    rowLo = lo + r * rowHeight
+                    rowHi = lo + (r + 1) * rowHeight
+
+                    // Draw net delta only
+                    if d > 0
+                        width = math.max(1, int((d / combinedMaxAbsDelta) * secondaryWidth))
+                        x2 = secondaryStartBar + width
+                        intensity = int((d / secondaryMaxAbsDelta) * 100)
+                        boxColor = color.new(secondaryPositiveColor, 100 - intensity)
+                        b = box.new(secondaryStartBar, rowLo, x2, rowHi, border_color=color.new(secondaryPositiveColor, 30), bgcolor=boxColor, border_width=1)
+                        array.push(secondaryBoxes, b)
+                    else if d < 0
+                        width = math.max(1, int((math.abs(d) / combinedMaxAbsDelta) * secondaryWidth))
+                        x1 = secondaryStartBar - width
+                        intensity = int((math.abs(d) / secondaryMaxAbsDelta) * 100)
+                        boxColor = color.new(secondaryNegativeColor, 100 - intensity)
+                        b = box.new(x1, rowLo, secondaryStartBar, rowHi, border_color=color.new(secondaryNegativeColor, 30), bgcolor=boxColor, border_width=1)
+                        array.push(secondaryBoxes, b)
+
+            // Draw secondary POC
+            if showPOC
+                secondaryPocLine = line.new(startBar, secondaryPocPrice, secondaryEndBar, secondaryPocPrice, color=secondaryPositiveColor, width=2, style=line.style_solid)
+                array.push(lines, secondaryPocLine)
+                secondaryPocLabel = label.new(secondaryEndBar+2, secondaryPocPrice, "POC: " + str.tostring(secondaryPocPrice, format.mintick) + " Δ: " + str.tostring(secondaryPocDelta, format.volume), style=label.style_label_left, color=secondaryPositiveColor, textcolor=color.white, size=size.small)
+                array.push(labels, secondaryPocLabel)
+
+    // Debug info
+    if showDebug
+        var table debugTable = table.new(position.top_right, 2, 9, bgcolor=color.new(color.black, 80), border_width=1)
+        table.cell(debugTable, 0, 0, "Display Mode:", text_color=color.white)
+        table.cell(debugTable, 1, 0, "Net Delta Only", text_color=color.yellow)
+        table.cell(debugTable, 0, 1, "Range Mode:", text_color=color.white)
+        table.cell(debugTable, 1, 1, useTimeRange ? "Time Range" : "Bar Lookback", text_color=color.yellow)
+        table.cell(debugTable, 0, 2, "Row Mode:", text_color=color.white)
+        table.cell(debugTable, 1, 2, useTicksPerRow ? "Ticks Per Row" : "Fixed Rows", text_color=color.yellow)
+        table.cell(debugTable, 0, 3, "Bars Back:", text_color=color.white)
+        table.cell(debugTable, 1, 3, str.tostring(barsBack), text_color=color.yellow)
+        table.cell(debugTable, 0, 4, "Actual Rows:", text_color=color.white)
+        table.cell(debugTable, 1, 4, str.tostring(actualRows), text_color=color.yellow)
+        table.cell(debugTable, 0, 5, "Row Height:", text_color=color.white)
+        table.cell(debugTable, 1, 5, str.tostring(rowHeight, format.mintick), text_color=color.yellow)
+        table.cell(debugTable, 0, 6, "Max |Delta|:", text_color=color.white)
+        table.cell(debugTable, 1, 6, str.tostring(maxAbsDelta, format.volume), text_color=color.yellow)
+        table.cell(debugTable, 0, 7, "Start Time:", text_color=color.white)
+        table.cell(debugTable, 1, 7, str.format_time(startTime, "yyyy-MM-dd HH:mm"), text_color=color.yellow)
+        table.cell(debugTable, 0, 8, "POC Delta:", text_color=color.white)
+        table.cell(debugTable, 1, 8, str.tostring(pocDelta, format.volume), text_color=pocDelta > 0 ? color.green : color.red)
