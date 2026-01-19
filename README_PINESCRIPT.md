@@ -4,7 +4,10 @@ A PineScript v5 indicator that allows you to define a rectangular area on your c
 
 ## Features
 
-- **Customizable Rectangle**: Define exact coordinates using date/time and price inputs
+- **Two Coordinate Modes**:
+  - **Bars Back Mode** (Recommended): Uses relative bar counts - always works with current chart data
+  - **Date/Time Mode**: Uses absolute dates for historical analysis
+- **Auto Price Range**: Automatically calculates price range based on chart data (can be manually overridden)
 - **Multiple Volume Calculation Methods**:
   - **Total**: Sum all volume for bars within the date range
   - **Bar in Range**: Only count volume from bars completely within the price range
@@ -12,6 +15,7 @@ A PineScript v5 indicator that allows you to define a rectangular area on your c
 - **Visual Feedback**: Rectangle is drawn on chart with volume label
 - **Real-time Updates**: Volume calculation updates as new bars form
 - **Formatted Display**: Volume shown with K/M/B suffixes for readability
+- **Built-in Debug Plot**: Volume plot visible in data window to verify calculations
 
 ## How to Use
 
@@ -27,19 +31,26 @@ A PineScript v5 indicator that allows you to define a rectangular area on your c
 Once added to your chart, click the indicator settings (gear icon) to configure:
 
 #### Rectangle Coordinates
-- **Start Date/Time**: Beginning of the time range
-- **End Date/Time**: End of the time range
-- **Top Price**: Upper boundary of the price range
-- **Bottom Price**: Lower boundary of the price range
+
+**Mode Selection:**
+- **Use Bars Back (Recommended)**: When enabled, uses relative bar counts from current bar (default: ON)
+  - **Bars Back to Start**: How many bars back to start the rectangle (default: 100)
+  - **Bars Back to End**: How many bars back to end the rectangle (default: 0 = current bar)
+
+- **Date/Time Mode**: When "Use Bars Back" is disabled, uses absolute dates
+  - **Start Date/Time**: Beginning of the time range
+  - **End Date/Time**: End of the time range
+
+**Price Range:**
+- **Auto-Calculate Price Range**: Automatically sets top/bottom prices based on highs/lows in the date range (default: ON)
+- **Manual Top Price**: Used when auto-calculate is OFF
+- **Manual Bottom Price**: Used when auto-calculate is OFF
 
 #### Calculation Settings
 - **Volume Method**: Choose how volume is calculated
   - `Total`: Sums all volume for bars in the date range (most inclusive)
   - `Bar in Range`: Only includes bars where both high and low are within price range (most restrictive)
   - `Weighted`: Weights each bar's volume by what percentage of it falls within the price range (most accurate)
-- **Max Lookback Bars**: Maximum number of bars to look back for calculation (default: 500, max: 5000)
-  - Increase this if your date range extends far into the past
-  - Higher values may slow down the indicator but provide more complete data
 
 #### Visual Settings
 - **Rectangle Color**: Background color of the rectangle
@@ -50,10 +61,17 @@ Once added to your chart, click the indicator settings (gear icon) to configure:
 ### 3. Reading the Results
 
 The indicator will:
-1. Draw a rectangle on your chart at the specified coordinates
+1. Draw a rectangle on your chart covering the specified time and price range
 2. Display a label at the top-right corner showing:
    - Formatted volume (e.g., "123.45M")
-   - Exact volume in parentheses
+   - Exact volume below
+3. Show volume in the data window (hover over chart to see)
+
+**Default Behavior (No configuration needed):**
+- Rectangle covers last 100 bars
+- Price range auto-calculated from highs/lows
+- Uses "Total" volume method
+- Should work immediately on any chart
 
 ## Volume Calculation Methods Explained
 
@@ -100,29 +118,33 @@ Calculates what percentage of each bar overlaps with the price range, then multi
 
 ## Limitations
 
-- **Lookback Limit**: The indicator only looks back a maximum number of bars (default 500, adjustable to 5000)
-  - If your date range is older than the lookback limit, some data may be excluded
-  - Increase "Max Lookback Bars" in settings if you need to analyze older data
-  - Higher lookback values may impact performance
-- The indicator recalculates on each bar, which may cause slight delays on lower-powered devices
+- **Lookback Limit**: When using "Bars Back" mode, limited to specified number of bars
+  - Bars Back mode can look back up to 5000 bars
+  - Date/Time mode can look back up to 5000 bars from current bar
+- The indicator recalculates on each bar update
 - Maximum of 500 boxes and labels (PineScript limitation)
 - Data availability depends on your TradingView plan and the chart's loaded history
+- Auto price calculation only works in "Bars Back" mode
 
 ## Tips
 
+- **For most users**: Leave default settings (Bars Back mode, Auto Price, Total volume) - it just works!
 - Use the **Weighted** method for most accurate volume profile calculations
-- Start with a smaller date range and expand as needed
-- If your rectangle doesn't show the expected volume, try increasing "Max Lookback Bars"
-- The indicator works on all timeframes, but calculation time increases with more bars
+- **Bars Back mode** is more reliable than Date/Time mode for quick analysis
+- Check the data window (hover over chart) to verify volume is being calculated
+- The indicator works on all timeframes
 - You can add multiple instances of the indicator to compare different areas
-- For recent data (within last 500 bars), the default settings work perfectly
+- For precise price levels, disable "Auto-Calculate Price Range" and set manual prices
+- For historical analysis, switch to Date/Time mode and set specific dates
 
 ## Technical Notes
 
 - Written in PineScript v5
-- Uses `box.new()` for rectangle visualization
-- Implements efficient looping for volume calculation
-- Provides real-time updates as new bars form
+- Uses `box.new()` for rectangle visualization with `xloc.bar_time` positioning
+- Implements efficient looping with configurable lookback
+- Updates rectangle and label only on last bar for performance
+- Includes volume plot for debugging (visible in data window)
+- Default settings designed to work immediately without configuration
 
 ## Support
 

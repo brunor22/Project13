@@ -5,13 +5,46 @@ indicator("Volume Profile Rectangle", overlay=true, max_boxes_count=500, max_lab
 // INPUT SETTINGS - Define Rectangle Coordinates
 // ============================================================================
 
-// Date Range Inputs
-start_date = input.time(timestamp("2024-01-01 00:00"), "Start Date/Time", group="Rectangle Coordinates")
-end_date = input.time(timestamp("2024-01-31 23:59"), "End Date/Time", group="Rectangle Coordinates")
+// Use bars back instead of absolute dates (more reliable)
+use_bars_back = input.bool(true, "Use Bars Back (Recommended)", group="Rectangle Coordinates",
+     tooltip="When enabled, uses bar count instead of dates. More reliable for recent data.")
 
-// Price Range Inputs
-top_price = input.float(100.0, "Top Price", group="Rectangle Coordinates")
-bottom_price = input.float(90.0, "Bottom Price", group="Rectangle Coordinates")
+// Bars back inputs (used when use_bars_back = true)
+bars_back_start = input.int(100, "Bars Back to Start", minval=1, maxval=5000, group="Rectangle Coordinates")
+bars_back_end = input.int(0, "Bars Back to End", minval=0, maxval=5000, group="Rectangle Coordinates")
+
+// Date Range Inputs (used when use_bars_back = false)
+start_date_input = input.time(timestamp("2024-01-01 00:00"), "Start Date/Time", group="Rectangle Coordinates")
+end_date_input = input.time(timestamp("2024-01-31 23:59"), "End Date/Time", group="Rectangle Coordinates")
+
+// Calculate actual start/end times based on mode
+start_date = use_bars_back ? time[math.min(bars_back_start, bar_index)] : start_date_input
+end_date = use_bars_back ? time[bars_back_end] : end_date_input
+
+// Price Range Inputs - Auto-calculate based on recent highs/lows
+auto_price = input.bool(true, "Auto-Calculate Price Range", group="Rectangle Coordinates",
+     tooltip="Automatically set price range based on recent price action")
+
+manual_top_price = input.float(100.0, "Manual Top Price", group="Rectangle Coordinates")
+manual_bottom_price = input.float(90.0, "Manual Bottom Price", group="Rectangle Coordinates")
+
+// Calculate price range
+float top_price = manual_top_price
+float bottom_price = manual_bottom_price
+
+if auto_price and use_bars_back
+    float range_high = high
+    float range_low = low
+
+    // Find high/low within the bar range
+    for i = 0 to math.min(bars_back_start, bar_index)
+        if high[i] > range_high
+            range_high := high[i]
+        if low[i] < range_low
+            range_low := low[i]
+
+    top_price := range_high
+    bottom_price := range_low
 
 // Visual Settings
 rect_color = input.color(color.new(color.blue, 85), "Rectangle Color", group="Visual Settings")
@@ -34,11 +67,6 @@ if bottom_price >= top_price
 // ============================================================================
 // CALCULATE VOLUME WITH LIMITED LOOKBACK (EFFICIENT METHOD)
 // ============================================================================
-
-// Input for lookback limit
-lookback_bars = input.int(500, "Max Lookback Bars", minval=50, maxval=5000,
-     tooltip="Maximum number of bars to look back for calculation. Increase if your date range is far in the past.",
-     group="Calculation Settings")
 
 // Function to calculate volume for a single bar
 calc_bar_volume(bar_h, bar_l, bar_c, bar_v) =>
@@ -67,9 +95,11 @@ calc_bar_volume(bar_h, bar_l, bar_c, bar_v) =>
 
 // Calculate total volume within rectangle
 total_volume = 0.0
-bars_to_check = math.min(bar_index, lookback_bars)
 
-for i = 0 to bars_to_check
+// Determine how many bars to check
+bars_to_check = use_bars_back ? bars_back_start : math.min(bar_index, 5000)
+
+for i = 0 to math.min(bars_to_check, bar_index)
     bar_time = time[i]
 
     // Only include bars within the date range
@@ -78,32 +108,11 @@ for i = 0 to bars_to_check
         total_volume += bar_vol
 
 // ============================================================================
-// DRAW RECTANGLE
+// DRAW RECTANGLE AND LABEL
 // ============================================================================
 
 var box rect_box = na
 var label volume_label = na
-
-// Delete previous box and label on each update
-if not na(rect_box)
-    box.delete(rect_box)
-if not na(volume_label)
-    label.delete(volume_label)
-
-// Create new rectangle box
-rect_box := box.new(
-     left=start_date,
-     top=top_price,
-     right=end_date,
-     bottom=bottom_price,
-     bgcolor=rect_color,
-     border_color=rect_border_color,
-     border_width=2
- )
-
-// ============================================================================
-// DISPLAY VOLUME LABEL
-// ============================================================================
 
 // Format volume with appropriate units
 format_volume(vol) =>
@@ -118,22 +127,43 @@ format_volume(vol) =>
         result := str.tostring(vol, "#")
     result
 
-volume_text = "Volume: " + format_volume(total_volume) + "\n(" + str.tostring(total_volume, "#") + ")"
+volume_text = "Volume: " + format_volume(total_volume) + "\n" + str.tostring(total_volume, "#")
 
-// Create label at top-right corner of rectangle
-volume_label := label.new(
-     x=end_date,
-     y=top_price,
-     text=volume_text,
-     style=label.style_label_down,
-     color=label_bg_color,
-     textcolor=label_color,
-     size=size.normal
- )
+// Update box and label on the last bar
+if barstate.islast
+    // Delete old objects if they exist
+    if not na(rect_box)
+        box.delete(rect_box)
+    if not na(volume_label)
+        label.delete(volume_label)
+
+    // Create new rectangle box
+    rect_box := box.new(
+         left=start_date,
+         top=top_price,
+         right=end_date,
+         bottom=bottom_price,
+         bgcolor=rect_color,
+         border_color=rect_border_color,
+         border_width=2,
+         xloc=xloc.bar_time
+     )
+
+    // Create label at top-right corner of rectangle
+    volume_label := label.new(
+         x=end_date,
+         y=top_price,
+         text=volume_text,
+         style=label.style_label_down,
+         color=label_bg_color,
+         textcolor=label_color,
+         size=size.normal,
+         xloc=xloc.bar_time
+     )
 
 // ============================================================================
-// DEBUG: Plot volume to verify calculation
+// DEBUG: Plot volume and bar info
 // ============================================================================
 
 // Uncomment to see volume plotted at the bottom for debugging
-// plot(total_volume, "Total Volume", color=color.blue, display=display.data_window)
+plot(total_volume, "Total Volume", color=color.new(color.blue, 80), display=display.data_window)
