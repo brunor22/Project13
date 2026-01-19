@@ -32,13 +32,59 @@ if bottom_price >= top_price
     runtime.error("Bottom Price must be less than Top Price")
 
 // ============================================================================
+// CALCULATE VOLUME WITH LIMITED LOOKBACK (EFFICIENT METHOD)
+// ============================================================================
+
+// Input for lookback limit
+lookback_bars = input.int(500, "Max Lookback Bars", minval=50, maxval=5000,
+     tooltip="Maximum number of bars to look back for calculation. Increase if your date range is far in the past.",
+     group="Calculation Settings")
+
+// Function to calculate volume for a single bar
+calc_bar_volume(bar_h, bar_l, bar_c, bar_v) =>
+    float result = 0.0
+
+    if volume_method == "Total"
+        result := bar_v
+
+    else if volume_method == "Bar in Range"
+        if bar_h <= top_price and bar_l >= bottom_price
+            result := bar_v
+
+    else if volume_method == "Weighted"
+        bar_range = bar_h - bar_l
+
+        if bar_range > 0
+            overlap_top = math.min(bar_h, top_price)
+            overlap_bottom = math.max(bar_l, bottom_price)
+            overlap_range = math.max(0, overlap_top - overlap_bottom)
+            weight = overlap_range / bar_range
+            result := bar_v * weight
+        else
+            if bar_c >= bottom_price and bar_c <= top_price
+                result := bar_v
+    result
+
+// Calculate total volume within rectangle
+total_volume = 0.0
+bars_to_check = math.min(bar_index, lookback_bars)
+
+for i = 0 to bars_to_check
+    bar_time = time[i]
+
+    // Only include bars within the date range
+    if bar_time >= start_date and bar_time <= end_date
+        bar_vol = calc_bar_volume(high[i], low[i], close[i], volume[i])
+        total_volume += bar_vol
+
+// ============================================================================
 // DRAW RECTANGLE
 // ============================================================================
 
 var box rect_box = na
 var label volume_label = na
 
-// Delete previous box and label
+// Delete previous box and label on each update
 if not na(rect_box)
     box.delete(rect_box)
 if not na(volume_label)
@@ -52,96 +98,8 @@ rect_box := box.new(
      bottom=bottom_price,
      bgcolor=rect_color,
      border_color=rect_border_color,
-     border_width=2,
-     text="",
-     text_color=label_color,
-     text_size=size.normal
+     border_width=2
  )
-
-// ============================================================================
-// CALCULATE VOLUME WITHIN RECTANGLE
-// ============================================================================
-
-var float total_volume = 0.0
-var bool calculation_done = false
-
-// Only calculate once when we're past the end date
-if time >= end_date and not calculation_done
-    total_volume := 0.0
-
-    // Loop through all bars from start to end date
-    for i = 0 to bar_index
-        bar_time = time[i]
-        bar_high = high[i]
-        bar_low = low[i]
-        bar_close = close[i]
-        bar_volume = volume[i]
-
-        // Check if bar is within date range
-        if bar_time >= start_date and bar_time <= end_date
-
-            if volume_method == "Total"
-                // Include all volume for bars in the date range
-                total_volume += bar_volume
-
-            else if volume_method == "Bar in Range"
-                // Only include volume if entire bar is within price range
-                if bar_high <= top_price and bar_low >= bottom_price
-                    total_volume += bar_volume
-
-            else if volume_method == "Weighted"
-                // Weight volume by percentage of bar within price range
-                bar_range = bar_high - bar_low
-
-                if bar_range > 0
-                    // Calculate overlap between bar and rectangle
-                    overlap_top = math.min(bar_high, top_price)
-                    overlap_bottom = math.max(bar_low, bottom_price)
-                    overlap_range = math.max(0, overlap_top - overlap_bottom)
-
-                    // Calculate percentage of bar within rectangle
-                    weight = overlap_range / bar_range
-                    total_volume += bar_volume * weight
-                else
-                    // Bar has no range (high == low), check if within price range
-                    if bar_close >= bottom_price and bar_close <= top_price
-                        total_volume += bar_volume
-
-    calculation_done := true
-
-// Alternative: Real-time calculation (updates on every bar)
-// This version updates continuously instead of waiting until after end_date
-float realtime_volume = 0.0
-
-for i = 0 to bar_index
-    bar_time = time[i]
-    bar_high = high[i]
-    bar_low = low[i]
-    bar_close = close[i]
-    bar_volume = volume[i]
-
-    // Check if bar is within date range
-    if bar_time >= start_date and bar_time <= end_date
-
-        if volume_method == "Total"
-            realtime_volume += bar_volume
-
-        else if volume_method == "Bar in Range"
-            if bar_high <= top_price and bar_low >= bottom_price
-                realtime_volume += bar_volume
-
-        else if volume_method == "Weighted"
-            bar_range = bar_high - bar_low
-
-            if bar_range > 0
-                overlap_top = math.min(bar_high, top_price)
-                overlap_bottom = math.max(bar_low, bottom_price)
-                overlap_range = math.max(0, overlap_top - overlap_bottom)
-                weight = overlap_range / bar_range
-                realtime_volume += bar_volume * weight
-            else
-                if bar_close >= bottom_price and bar_close <= top_price
-                    realtime_volume += bar_volume
 
 // ============================================================================
 // DISPLAY VOLUME LABEL
@@ -160,7 +118,7 @@ format_volume(vol) =>
         result := str.tostring(vol, "#")
     result
 
-volume_text = "Volume: " + format_volume(realtime_volume) + "\n(" + str.tostring(realtime_volume, "#") + ")"
+volume_text = "Volume: " + format_volume(total_volume) + "\n(" + str.tostring(total_volume, "#") + ")"
 
 // Create label at top-right corner of rectangle
 volume_label := label.new(
@@ -174,8 +132,8 @@ volume_label := label.new(
  )
 
 // ============================================================================
-// OPTIONAL: Plot volume as a line (for reference)
+// DEBUG: Plot volume to verify calculation
 // ============================================================================
 
-// Uncomment to see volume plotted at the bottom
-// plot(realtime_volume, "Total Volume", color=color.blue, display=display.data_window)
+// Uncomment to see volume plotted at the bottom for debugging
+// plot(total_volume, "Total Volume", color=color.blue, display=display.data_window)

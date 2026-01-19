@@ -37,6 +37,9 @@ Once added to your chart, click the indicator settings (gear icon) to configure:
   - `Total`: Sums all volume for bars in the date range (most inclusive)
   - `Bar in Range`: Only includes bars where both high and low are within price range (most restrictive)
   - `Weighted`: Weights each bar's volume by what percentage of it falls within the price range (most accurate)
+- **Max Lookback Bars**: Maximum number of bars to look back for calculation (default: 500, max: 5000)
+  - Increase this if your date range extends far into the past
+  - Higher values may slow down the indicator but provide more complete data
 
 #### Visual Settings
 - **Rectangle Color**: Background color of the rectangle
@@ -97,16 +100,22 @@ Calculates what percentage of each bar overlaps with the price range, then multi
 
 ## Limitations
 
-- PineScript has a maximum loop limit, so very large date ranges on small timeframes may not calculate completely
+- **Lookback Limit**: The indicator only looks back a maximum number of bars (default 500, adjustable to 5000)
+  - If your date range is older than the lookback limit, some data may be excluded
+  - Increase "Max Lookback Bars" in settings if you need to analyze older data
+  - Higher lookback values may impact performance
 - The indicator recalculates on each bar, which may cause slight delays on lower-powered devices
 - Maximum of 500 boxes and labels (PineScript limitation)
+- Data availability depends on your TradingView plan and the chart's loaded history
 
 ## Tips
 
 - Use the **Weighted** method for most accurate volume profile calculations
 - Start with a smaller date range and expand as needed
+- If your rectangle doesn't show the expected volume, try increasing "Max Lookback Bars"
 - The indicator works on all timeframes, but calculation time increases with more bars
 - You can add multiple instances of the indicator to compare different areas
+- For recent data (within last 500 bars), the default settings work perfectly
 
 ## Technical Notes
 
