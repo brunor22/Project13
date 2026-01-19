@@ -52,6 +52,13 @@ rect_border_color = input.color(color.new(color.blue, 30), "Rectangle Border", g
 label_color = input.color(color.new(color.white, 0), "Label Text Color", group="Visual Settings")
 label_bg_color = input.color(color.new(color.blue, 20), "Label Background", group="Visual Settings")
 
+// Price Level Extension Lines
+show_extensions = input.bool(true, "Show Price Level Extensions", group="Price Level Extensions",
+     tooltip="Draw dashed lines extending left and right at top/bottom prices")
+extension_style = input.string("Dashed", "Line Style", options=["Solid", "Dashed", "Dotted"], group="Price Level Extensions")
+extension_color = input.color(color.new(color.blue, 0), "Line Color", group="Price Level Extensions")
+extension_width = input.int(1, "Line Width", minval=1, maxval=4, group="Price Level Extensions")
+
 // Volume Calculation Method
 volume_method = input.string("Total", "Volume Method", options=["Total", "Bar in Range", "Weighted"],
      tooltip="Total: Sum all volume for bars in range\nBar in Range: Only bars fully within price range\nWeighted: Weight volume by % of bar within price range",
@@ -113,6 +120,8 @@ for i = 0 to math.min(bars_to_check, bar_index)
 
 var box rect_box = na
 var label volume_label = na
+var line top_extension = na
+var line bottom_extension = na
 
 // Format volume with appropriate units
 format_volume(vol) =>
@@ -136,6 +145,10 @@ if barstate.islast
         box.delete(rect_box)
     if not na(volume_label)
         label.delete(volume_label)
+    if not na(top_extension)
+        line.delete(top_extension)
+    if not na(bottom_extension)
+        line.delete(bottom_extension)
 
     // Create new rectangle box
     rect_box := box.new(
@@ -160,6 +173,39 @@ if barstate.islast
          size=size.normal,
          xloc=xloc.bar_time
      )
+
+    // Create price level extension lines if enabled
+    if show_extensions
+        // Determine line style
+        line_style = extension_style == "Solid" ? line.style_solid :
+                     extension_style == "Dashed" ? line.style_dashed :
+                     line.style_dotted
+
+        // Create top price extension line (extends both left and right)
+        top_extension := line.new(
+             x1=start_date,
+             y1=top_price,
+             x2=end_date,
+             y2=top_price,
+             xloc=xloc.bar_time,
+             extend=extend.both,
+             color=extension_color,
+             style=line_style,
+             width=extension_width
+         )
+
+        // Create bottom price extension line (extends both left and right)
+        bottom_extension := line.new(
+             x1=start_date,
+             y1=bottom_price,
+             x2=end_date,
+             y2=bottom_price,
+             xloc=xloc.bar_time,
+             extend=extend.both,
+             color=extension_color,
+             style=line_style,
+             width=extension_width
+         )
 
 // ============================================================================
 // DEBUG: Plot volume and bar info

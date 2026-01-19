@@ -8,6 +8,7 @@ A PineScript v5 indicator that allows you to define a rectangular area on your c
   - **Bars Back Mode** (Recommended): Uses relative bar counts - always works with current chart data
   - **Date/Time Mode**: Uses absolute dates for historical analysis
 - **Auto Price Range**: Automatically calculates price range based on chart data (can be manually overridden)
+- **Price Level Extensions**: Optional dashed lines extending left and right at top/bottom prices (perfect for support/resistance levels)
 - **Multiple Volume Calculation Methods**:
   - **Total**: Sum all volume for bars within the date range
   - **Bar in Range**: Only count volume from bars completely within the price range
@@ -58,6 +59,12 @@ Once added to your chart, click the indicator settings (gear icon) to configure:
 - **Label Text Color**: Color of the volume text
 - **Label Background**: Background color of the label
 
+#### Price Level Extensions
+- **Show Price Level Extensions**: Enable/disable dashed lines extending from top and bottom prices (default: ON)
+- **Line Style**: Choose between Solid, Dashed, or Dotted lines (default: Dashed)
+- **Line Color**: Color of the extension lines (default: blue)
+- **Line Width**: Thickness of the lines 1-4 (default: 1)
+
 ### 3. Reading the Results
 
 The indicator will:
@@ -65,12 +72,14 @@ The indicator will:
 2. Display a label at the top-right corner showing:
    - Formatted volume (e.g., "123.45M")
    - Exact volume below
-3. Show volume in the data window (hover over chart to see)
+3. Draw dashed lines extending left and right at the top and bottom prices (if enabled)
+4. Show volume in the data window (hover over chart to see)
 
 **Default Behavior (No configuration needed):**
 - Rectangle covers last 100 bars
 - Price range auto-calculated from highs/lows
 - Uses "Total" volume method
+- Dashed extension lines at top/bottom prices
 - Should work immediately on any chart
 
 ## Volume Calculation Methods Explained
@@ -103,6 +112,7 @@ Calculates what percentage of each bar overlaps with the price range, then multi
 2. Set the price range to cover the zone (e.g., $99.50 to $100.50)
 3. Set the date range to cover the period you're interested in
 4. Use "Weighted" method to see actual volume traded in that zone
+5. Extension lines will project the levels across your entire chart for easy reference
 
 ### Comparing Volume Across Time Periods
 1. Create multiple instances of the indicator
@@ -131,20 +141,24 @@ Calculates what percentage of each bar overlaps with the price range, then multi
 - **For most users**: Leave default settings (Bars Back mode, Auto Price, Total volume) - it just works!
 - Use the **Weighted** method for most accurate volume profile calculations
 - **Bars Back mode** is more reliable than Date/Time mode for quick analysis
+- **Extension lines** are great for marking support/resistance levels that persist across time
 - Check the data window (hover over chart) to verify volume is being calculated
 - The indicator works on all timeframes
 - You can add multiple instances of the indicator to compare different areas
 - For precise price levels, disable "Auto-Calculate Price Range" and set manual prices
 - For historical analysis, switch to Date/Time mode and set specific dates
+- Disable extension lines if you find them distracting or want a cleaner chart
 
 ## Technical Notes
 
 - Written in PineScript v5
 - Uses `box.new()` for rectangle visualization with `xloc.bar_time` positioning
+- Uses `line.new()` with `extend.both` for price level extensions
 - Implements efficient looping with configurable lookback
-- Updates rectangle and label only on last bar for performance
+- Updates rectangle, label, and lines only on last bar for performance
 - Includes volume plot for debugging (visible in data window)
 - Default settings designed to work immediately without configuration
+- Supports customizable line styles (solid, dashed, dotted)
 
 ## Support
 
