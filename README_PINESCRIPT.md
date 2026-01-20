@@ -197,7 +197,7 @@ Calculates what percentage of each bar overlaps with the price range, then multi
 
 ## Technical Notes
 
-- Written in PineScript v5
+- Written in PineScript v6
 - Uses `box.new()` for rectangle visualization with `xloc.bar_time` positioning
 - Uses `line.new()` with `extend.both` for price level extensions
 - Implements efficient looping with configurable lookback
