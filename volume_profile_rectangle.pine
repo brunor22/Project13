@@ -1,4 +1,4 @@
-//@version=5
+//@version=6
 indicator("Volume Profile Rectangle", overlay=true, max_boxes_count=500, max_labels_count=500)
 
 // ============================================================================
@@ -226,12 +226,12 @@ if barstate.islast
     // Create label at top-right corner of rectangle
     volume_label := label.new(
          x=end_date,
-         y=top_price,
+         y=top_price - 1,
          text=volume_text,
-         style=label.style_label_down,
+         style=label.style_label_left,
          color=label_bg_dynamic,
          textcolor=label_color,
-         size=size.normal,
+         size=size.small,
          xloc=xloc.bar_time
      )
 
@@ -273,4 +273,4 @@ if barstate.islast
 // ============================================================================
 
 // Uncomment to see volume plotted at the bottom for debugging
-plot(total_volume, "Total Volume", color=color.new(color.blue, 80), display=display.data_window)
+//plot(total_volume, "Total Volume", color=color.new(color.blue, 80), display=display.data_window)
