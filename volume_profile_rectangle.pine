@@ -64,6 +64,13 @@ volume_method = input.string("Total", "Volume Method", options=["Total", "Bar in
      tooltip="Total: Sum all volume for bars in range\nBar in Range: Only bars fully within price range\nWeighted: Weight volume by % of bar within price range",
      group="Calculation Settings")
 
+// Volume Delta Settings
+show_delta = input.bool(true, "Show Volume Delta", group="Volume Delta",
+     tooltip="Calculate and display buying vs selling volume delta")
+delta_calculation = input.string("Close vs Open", "Delta Method", options=["Close vs Open", "Price Change Weighted"],
+     tooltip="Close vs Open: Buy if close > open\nPrice Change Weighted: Weight by (close-open)/open",
+     group="Volume Delta")
+
 // ============================================================================
 // VALIDATION
 // ============================================================================
@@ -100,8 +107,29 @@ calc_bar_volume(bar_h, bar_l, bar_c, bar_v) =>
                 result := bar_v
     result
 
-// Calculate total volume within rectangle
+// Function to calculate volume delta for a single bar
+calc_bar_delta(bar_o, bar_c, bar_v, weight) =>
+    float delta = 0.0
+
+    if delta_calculation == "Close vs Open"
+        // Simple: if close > open, it's buying volume; else selling volume
+        if bar_c > bar_o
+            delta := bar_v * weight  // Buying volume (positive)
+        else if bar_c < bar_o
+            delta := -bar_v * weight  // Selling volume (negative)
+        // If close == open, delta remains 0
+
+    else if delta_calculation == "Price Change Weighted"
+        // Weight by percentage price change
+        if bar_o != 0
+            price_change_pct = (bar_c - bar_o) / bar_o
+            delta := bar_v * weight * price_change_pct
+
+    delta
+
+// Calculate total volume and delta within rectangle
 total_volume = 0.0
+total_delta = 0.0
 
 // Determine how many bars to check
 bars_to_check = use_bars_back ? bars_back_start : math.min(bar_index, 5000)
@@ -113,6 +141,23 @@ for i = 0 to math.min(bars_to_check, bar_index)
     if bar_time >= start_date and bar_time <= end_date
         bar_vol = calc_bar_volume(high[i], low[i], close[i], volume[i])
         total_volume += bar_vol
+
+        // Calculate delta if enabled
+        if show_delta
+            // Calculate weight based on volume method
+            weight = 1.0
+            if volume_method == "Bar in Range"
+                weight := (high[i] <= top_price and low[i] >= bottom_price) ? 1.0 : 0.0
+            else if volume_method == "Weighted"
+                bar_range = high[i] - low[i]
+                if bar_range > 0
+                    overlap_top = math.min(high[i], top_price)
+                    overlap_bottom = math.max(low[i], bottom_price)
+                    overlap_range = math.max(0, overlap_top - overlap_bottom)
+                    weight := overlap_range / bar_range
+
+            bar_delta = calc_bar_delta(open[i], close[i], volume[i], weight)
+            total_delta += bar_delta
 
 // ============================================================================
 // DRAW RECTANGLE AND LABEL
@@ -126,17 +171,33 @@ var line bottom_extension = na
 // Format volume with appropriate units
 format_volume(vol) =>
     string result = ""
-    if vol >= 1000000000
+    float abs_vol = math.abs(vol)
+    if abs_vol >= 1000000000
         result := str.tostring(vol / 1000000000, "#.##") + "B"
-    else if vol >= 1000000
+    else if abs_vol >= 1000000
         result := str.tostring(vol / 1000000, "#.##") + "M"
-    else if vol >= 1000
+    else if abs_vol >= 1000
         result := str.tostring(vol / 1000, "#.##") + "K"
     else
         result := str.tostring(vol, "#")
     result
 
-volume_text = "Volume: " + format_volume(total_volume) + "\n" + str.tostring(total_volume, "#")
+// Build volume text
+volume_text = "Vol: " + format_volume(total_volume)
+
+// Add delta if enabled
+if show_delta
+    delta_prefix = total_delta >= 0 ? "Δ +" : "Δ "
+    volume_text := volume_text + "\n" + delta_prefix + format_volume(total_delta)
+
+// Calculate delta percentage
+delta_pct = total_volume != 0 ? (total_delta / total_volume) * 100 : 0
+
+// Determine label color based on delta
+label_bg_dynamic = show_delta ?
+     (total_delta > 0 ? color.new(color.green, 20) :
+      total_delta < 0 ? color.new(color.red, 20) :
+      label_bg_color) : label_bg_color
 
 // Update box and label on the last bar
 if barstate.islast
@@ -168,7 +229,7 @@ if barstate.islast
          y=top_price,
          text=volume_text,
          style=label.style_label_down,
-         color=label_bg_color,
+         color=label_bg_dynamic,
          textcolor=label_color,
          size=size.normal,
          xloc=xloc.bar_time

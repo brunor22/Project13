@@ -9,6 +9,7 @@ A PineScript v5 indicator that allows you to define a rectangular area on your c
   - **Date/Time Mode**: Uses absolute dates for historical analysis
 - **Auto Price Range**: Automatically calculates price range based on chart data (can be manually overridden)
 - **Price Level Extensions**: Optional dashed lines extending left and right at top/bottom prices (perfect for support/resistance levels)
+- **Volume Delta Analysis**: Calculate buying vs selling pressure with color-coded labels (green for bullish, red for bearish)
 - **Multiple Volume Calculation Methods**:
   - **Total**: Sum all volume for bars within the date range
   - **Bar in Range**: Only count volume from bars completely within the price range
@@ -53,6 +54,14 @@ Once added to your chart, click the indicator settings (gear icon) to configure:
   - `Bar in Range`: Only includes bars where both high and low are within price range (most restrictive)
   - `Weighted`: Weights each bar's volume by what percentage of it falls within the price range (most accurate)
 
+#### Volume Delta
+- **Show Volume Delta**: Enable/disable delta calculation (default: ON)
+  - When enabled, label shows buying volume minus selling volume
+  - Label background turns green for positive delta (more buying), red for negative delta (more selling)
+- **Delta Method**: Choose how to classify buying vs selling volume
+  - `Close vs Open`: Simple method - if close > open, it's buying volume; else selling (default)
+  - `Price Change Weighted`: Weights volume by the percentage price change (close-open)/open
+
 #### Visual Settings
 - **Rectangle Color**: Background color of the rectangle
 - **Rectangle Border**: Border color of the rectangle
@@ -70,8 +79,9 @@ Once added to your chart, click the indicator settings (gear icon) to configure:
 The indicator will:
 1. Draw a rectangle on your chart covering the specified time and price range
 2. Display a label at the top-right corner showing:
-   - Formatted volume (e.g., "123.45M")
-   - Exact volume below
+   - Formatted volume (e.g., "Vol: 123.45M")
+   - Volume delta if enabled (e.g., "Δ +45.2M" for buying pressure or "Δ -23.1M" for selling pressure)
+   - Label background color: green for positive delta (bullish), red for negative delta (bearish)
 3. Draw dashed lines extending left and right at the top and bottom prices (if enabled)
 4. Show volume in the data window (hover over chart to see)
 
@@ -79,6 +89,7 @@ The indicator will:
 - Rectangle covers last 100 bars
 - Price range auto-calculated from highs/lows
 - Uses "Total" volume method
+- Volume delta enabled with color-coded labels
 - Dashed extension lines at top/bottom prices
 - Should work immediately on any chart
 
@@ -88,6 +99,37 @@ The indicator will:
 Includes ALL volume from any bar that falls within the date range, regardless of price.
 
 **Best for**: Getting total trading activity during a time period
+
+### Volume Delta Explained
+
+Volume Delta = Buying Volume - Selling Volume
+
+The indicator approximates buying and selling volume using two methods:
+
+#### Close vs Open (Simple Method)
+- If `close > open`: The bar is bullish → entire volume counted as buying
+- If `close < open`: The bar is bearish → entire volume counted as selling
+- If `close == open`: Neutral → contributes zero to delta
+
+**Best for**: Quick assessment of overall buying/selling pressure
+
+#### Price Change Weighted (Advanced Method)
+- Weights volume by the percentage price change: `(close - open) / open`
+- A bar that closes 2% higher contributes more than one that closes 0.5% higher
+- Captures the intensity of buying/selling pressure
+
+**Best for**: More nuanced analysis where magnitude of price movement matters
+
+#### Interpreting Delta
+- **Positive Delta (Green label)**: More buying than selling → Bullish sentiment in that zone
+- **Negative Delta (Red label)**: More selling than buying → Bearish sentiment in that zone
+- **Near-zero Delta**: Balanced buying and selling → Consolidation/equilibrium
+
+**Use Cases:**
+- Identify accumulation zones (positive delta at support)
+- Identify distribution zones (negative delta at resistance)
+- Confirm breakouts with strong buying/selling pressure
+- Spot divergences (price up but negative delta = weak rally)
 
 ### Bar in Range
 Only includes volume from bars where the **entire bar** (high to low) is within the price range.
@@ -138,16 +180,20 @@ Calculates what percentage of each bar overlaps with the price range, then multi
 
 ## Tips
 
-- **For most users**: Leave default settings (Bars Back mode, Auto Price, Total volume) - it just works!
+- **For most users**: Leave default settings (Bars Back mode, Auto Price, Total volume, Delta enabled) - it just works!
 - Use the **Weighted** method for most accurate volume profile calculations
 - **Bars Back mode** is more reliable than Date/Time mode for quick analysis
 - **Extension lines** are great for marking support/resistance levels that persist across time
+- **Volume Delta color coding** provides instant visual feedback on buying/selling pressure
+- Look for **positive delta at support levels** to confirm accumulation zones
+- Look for **negative delta at resistance levels** to confirm distribution zones
 - Check the data window (hover over chart) to verify volume is being calculated
 - The indicator works on all timeframes
 - You can add multiple instances of the indicator to compare different areas
 - For precise price levels, disable "Auto-Calculate Price Range" and set manual prices
 - For historical analysis, switch to Date/Time mode and set specific dates
 - Disable extension lines if you find them distracting or want a cleaner chart
+- Disable delta if you only want total volume without buy/sell breakdown
 
 ## Technical Notes
 
@@ -156,9 +202,12 @@ Calculates what percentage of each bar overlaps with the price range, then multi
 - Uses `line.new()` with `extend.both` for price level extensions
 - Implements efficient looping with configurable lookback
 - Updates rectangle, label, and lines only on last bar for performance
+- Volume delta calculated using open/close comparison or price-weighted method
+- Label background color dynamically changes based on delta (green/red/neutral)
 - Includes volume plot for debugging (visible in data window)
 - Default settings designed to work immediately without configuration
 - Supports customizable line styles (solid, dashed, dotted)
+- Delta calculation respects the selected volume method (Total/Bar in Range/Weighted)
 
 ## Support
 
