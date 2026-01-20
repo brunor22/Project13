@@ -199,74 +199,72 @@ label_bg_dynamic = show_delta ?
       total_delta < 0 ? color.new(color.red, 20) :
       label_bg_color) : label_bg_color
 
-// Update box and label on the last bar
-if barstate.islast
-    // Delete old objects if they exist
-    if not na(rect_box)
-        box.delete(rect_box)
-    if not na(volume_label)
-        label.delete(volume_label)
-    if not na(top_extension)
-        line.delete(top_extension)
-    if not na(bottom_extension)
-        line.delete(bottom_extension)
+// Delete old objects if they exist
+if not na(rect_box)
+    box.delete(rect_box)
+if not na(volume_label)
+    label.delete(volume_label)
+if not na(top_extension)
+    line.delete(top_extension)
+if not na(bottom_extension)
+    line.delete(bottom_extension)
 
-    // Create new rectangle box
-    rect_box := box.new(
-         left=start_date,
-         top=top_price,
-         right=end_date,
-         bottom=bottom_price,
-         bgcolor=rect_color,
-         border_color=rect_border_color,
-         border_width=2,
-         xloc=xloc.bar_time
+// Create new rectangle box
+rect_box := box.new(
+     left=start_date,
+     top=top_price,
+     right=end_date,
+     bottom=bottom_price,
+     bgcolor=rect_color,
+     border_color=rect_border_color,
+     border_width=2,
+     xloc=xloc.bar_time
+ )
+
+// Create label at top-right corner of rectangle
+volume_label := label.new(
+     x=end_date,
+     y=top_price - 1,
+     text=volume_text,
+     style=label.style_label_left,
+     color=label_bg_dynamic,
+     textcolor=label_color,
+     size=size.small,
+     xloc=xloc.bar_time
+ )
+
+// Create price level extension lines if enabled
+if show_extensions
+    // Determine line style
+    line_style = extension_style == "Solid" ? line.style_solid :
+                 extension_style == "Dashed" ? line.style_dashed :
+                 line.style_dotted
+
+    // Create top price extension line (extends both left and right)
+    top_extension := line.new(
+         x1=start_date,
+         y1=top_price,
+         x2=end_date,
+         y2=top_price,
+         xloc=xloc.bar_time,
+         extend=extend.both,
+         color=extension_color,
+         style=line_style,
+         width=extension_width
      )
 
-    // Create label at top-right corner of rectangle
-    volume_label := label.new(
-         x=end_date,
-         y=top_price - 1,
-         text=volume_text,
-         style=label.style_label_left,
-         color=label_bg_dynamic,
-         textcolor=label_color,
-         size=size.small,
-         xloc=xloc.bar_time
+    // Create bottom price extension line (extends both left and right)
+    bottom_extension := line.new(
+         x1=start_date,
+         y1=bottom_price,
+         x2=end_date,
+         y2=bottom_price,
+         xloc=xloc.bar_time,
+         extend=extend.both,
+         color=extension_color,
+         style=line_style,
+         width=extension_width
      )
-
-    // Create price level extension lines if enabled
-    if show_extensions
-        // Determine line style
-        line_style = extension_style == "Solid" ? line.style_solid :
-                     extension_style == "Dashed" ? line.style_dashed :
-                     line.style_dotted
-
-        // Create top price extension line (extends both left and right)
-        top_extension := line.new(
-             x1=start_date,
-             y1=top_price,
-             x2=end_date,
-             y2=top_price,
-             xloc=xloc.bar_time,
-             extend=extend.both,
-             color=extension_color,
-             style=line_style,
-             width=extension_width
-         )
-
-        // Create bottom price extension line (extends both left and right)
-        bottom_extension := line.new(
-             x1=start_date,
-             y1=bottom_price,
-             x2=end_date,
-             y2=bottom_price,
-             xloc=xloc.bar_time,
-             extend=extend.both,
-             color=extension_color,
-             style=line_style,
-             width=extension_width
-         )
 
 // ============================================================================
 // DEBUG: Plot volume and bar info
