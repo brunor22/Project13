@@ -18,9 +18,8 @@ var box  prevBox  = na
 var line prevLine = na
 var label prevLabel = na
 
-// Volume accumulation per period
-var float currUpVol       = 0.0
-var float currDownVol     = 0.0
+// Volume accumulation per period (volume profile delta)
+var float currDeltaAccum  = 0.0
 var float currTotalVol    = 0.0
 var float savedDelta      = 0.0
 var float savedTotalVol   = 0.0
@@ -94,18 +93,24 @@ makeOHLC(int bb = 0) =>
 
 isNewPeriod = ta.change(time(timeframe)) != 0
 
-// Accumulate volume per period
-// close >= open bars count as buying volume, close < open as selling volume
+// Volume profile delta: distribute each bar's volume based on where price
+// closed relative to the bar's range (high-low).
+//   close at high  → 100% buying volume  → delta = +volume
+//   close at low   → 100% selling volume → delta = -volume
+//   close at mid   → 50/50 split         → delta = 0
+// For zero-range bars (high == low), fall back to bar direction.
+barVol   = nz(volume)
+barRange = high - low
+barDelta = barRange > 0 ? barVol * (2 * close - high - low) / barRange : (close >= open ? barVol : -barVol)
+
 if isNewPeriod
-    savedDelta    := currUpVol - currDownVol
+    savedDelta    := currDeltaAccum
     savedTotalVol := currTotalVol
-    currUpVol     := close >= open ? nz(volume) : 0.0
-    currDownVol   := close < open  ? nz(volume) : 0.0
-    currTotalVol  := nz(volume)
+    currDeltaAccum := barDelta
+    currTotalVol   := barVol
 else
-    currUpVol    += close >= open ? nz(volume) : 0.0
-    currDownVol  += close < open  ? nz(volume) : 0.0
-    currTotalVol += nz(volume)
+    currDeltaAccum += barDelta
+    currTotalVol   += barVol
 
 drawCurrent = barstate.islast and not isNewPeriod
 sec = drawCurrent ? bar0 : bar1
@@ -143,7 +148,6 @@ if barstate.islast
         box.delete(prevBox)
         line.delete(prevLine)
         label.delete(prevLabel)
-        currDelta = currUpVol - currDownVol
         prevBox   := drawBoxOnly(left, right, top, bottom, diff, growthColorInput, fallColorInput, growthBorderColorInput, fallBorderColorInput)
         prevLine  := drawMidLine(left, right, top, bottom)
-        prevLabel := drawVolumeLabel(left, right, top, currDelta, currTotalVol, diff)
+        prevLabel := drawVolumeLabel(left, right, top, currDeltaAccum, currTotalVol, diff)
