@@ -58,9 +58,8 @@ Once added to your chart, click the indicator settings (gear icon) to configure:
 - **Show Volume Delta**: Enable/disable delta calculation (default: ON)
   - When enabled, label shows buying volume minus selling volume
   - Label background turns green for positive delta (more buying), red for negative delta (more selling)
-- **Delta Method**: Choose how to classify buying vs selling volume
-  - `Close vs Open`: Simple method - if close > open, it's buying volume; else selling (default)
-  - `Price Change Weighted`: Weights volume by the percentage price change (close-open)/open
+  - Uses bar position method: `delta = volume * (2*close - high - low) / (high - low)`
+  - This calculates where the close is within the bar's range to estimate buying/selling pressure
 
 #### Visual Settings
 - **Rectangle Color**: Background color of the rectangle
@@ -104,21 +103,28 @@ Includes ALL volume from any bar that falls within the date range, regardless of
 
 Volume Delta = Buying Volume - Selling Volume
 
-The indicator approximates buying and selling volume using two methods:
+The indicator uses the **Bar Position Method** to estimate buying and selling pressure:
 
-#### Close vs Open (Simple Method)
-- If `close > open`: The bar is bullish → entire volume counted as buying
-- If `close < open`: The bar is bearish → entire volume counted as selling
-- If `close == open`: Neutral → contributes zero to delta
+#### Formula
+```
+barDelta = volume * (2 * close - high - low) / (high - low)
+```
 
-**Best for**: Quick assessment of overall buying/selling pressure
+#### How It Works
+- Calculates where the close is positioned within the bar's range
+- Returns a value between -1 and +1:
+  - **+1**: Close at the high → All volume is buying pressure
+  - **-1**: Close at the low → All volume is selling pressure
+  - **0**: Close at the midpoint → Balanced buying/selling
+  - **+0.5**: Close at 75% of range → 50% more buying than selling
 
-#### Price Change Weighted (Advanced Method)
-- Weights volume by the percentage price change: `(close - open) / open`
-- A bar that closes 2% higher contributes more than one that closes 0.5% higher
-- Captures the intensity of buying/selling pressure
+#### Examples
+1. Bar: High=100, Low=90, Close=100 → Position = +1.0 → 100% buying volume
+2. Bar: High=100, Low=90, Close=90 → Position = -1.0 → 100% selling volume
+3. Bar: High=100, Low=90, Close=95 → Position = 0.0 → Neutral (50/50)
+4. Bar: High=100, Low=90, Close=97.5 → Position = +0.5 → 75% buying, 25% selling
 
-**Best for**: More nuanced analysis where magnitude of price movement matters
+**Advantages**: More nuanced than close vs open, considers the full bar range
 
 #### Interpreting Delta
 - **Positive Delta (Green label)**: More buying than selling → Bullish sentiment in that zone
@@ -202,7 +208,7 @@ Calculates what percentage of each bar overlaps with the price range, then multi
 - Uses `line.new()` with `extend.both` for price level extensions
 - Implements efficient looping with configurable lookback
 - Updates rectangle, label, and lines only on last bar for performance
-- Volume delta calculated using open/close comparison or price-weighted method
+- Volume delta calculated using bar position method: `volume * (2*close - high - low) / (high - low)`
 - Label background color dynamically changes based on delta (green/red/neutral)
 - Includes volume plot for debugging (visible in data window)
 - Default settings designed to work immediately without configuration

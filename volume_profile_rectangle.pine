@@ -66,10 +66,7 @@ volume_method = input.string("Total", "Volume Method", options=["Total", "Bar in
 
 // Volume Delta Settings
 show_delta = input.bool(true, "Show Volume Delta", group="Volume Delta",
-     tooltip="Calculate and display buying vs selling volume delta")
-delta_calculation = input.string("Close vs Open", "Delta Method", options=["Close vs Open", "Price Change Weighted"],
-     tooltip="Close vs Open: Buy if close > open\nPrice Change Weighted: Weight by (close-open)/open",
-     group="Volume Delta")
+     tooltip="Calculate and display buying vs selling volume delta using bar position method")
 
 // ============================================================================
 // VALIDATION
@@ -108,22 +105,21 @@ calc_bar_volume(bar_h, bar_l, bar_c, bar_v) =>
     result
 
 // Function to calculate volume delta for a single bar
-calc_bar_delta(bar_o, bar_c, bar_v, weight) =>
+// Uses bar position method: delta = volume * (2*close - high - low) / (high - low)
+// This estimates buying/selling pressure based on where close is within the bar range
+calc_bar_delta(bar_h, bar_l, bar_c, bar_v, weight) =>
     float delta = 0.0
 
-    if delta_calculation == "Close vs Open"
-        // Simple: if close > open, it's buying volume; else selling volume
-        if bar_c > bar_o
-            delta := bar_v * weight  // Buying volume (positive)
-        else if bar_c < bar_o
-            delta := -bar_v * weight  // Selling volume (negative)
-        // If close == open, delta remains 0
+    bar_range = bar_h - bar_l
 
-    else if delta_calculation == "Price Change Weighted"
-        // Weight by percentage price change
-        if bar_o != 0
-            price_change_pct = (bar_c - bar_o) / bar_o
-            delta := bar_v * weight * price_change_pct
+    if bar_range > 0
+        // Calculate position of close within the bar (-1 to +1)
+        // +1 = close at high (all buying), -1 = close at low (all selling), 0 = middle
+        position = (2 * bar_c - bar_h - bar_l) / bar_range
+        delta := bar_v * position * weight
+    else
+        // Bar has no range (high == low), delta is 0
+        delta := 0.0
 
     delta
 
@@ -156,7 +152,7 @@ for i = 0 to math.min(bars_to_check, bar_index)
                     overlap_range = math.max(0, overlap_top - overlap_bottom)
                     weight := overlap_range / bar_range
 
-            bar_delta = calc_bar_delta(open[i], close[i], volume[i], weight)
+            bar_delta = calc_bar_delta(high[i], low[i], close[i], volume[i], weight)
             total_delta += bar_delta
 
 // ============================================================================
