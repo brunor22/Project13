@@ -51,10 +51,8 @@ drawMidLine(left, right, top, bottom) =>
 drawVolumeLabel(int left, int right, float top, float delta, float totalVol, float diff) =>
     midX = int(math.round((left + right) / 2))
     deltaSign = delta >= 0 ? "+" : "-"
-    deltaText = "Δ " + deltaSign + formatVol(math.abs(delta))
-    totalText = "Vol " + formatVol(totalVol)
-    txt = deltaText + "\n" + totalText
-    lblColor = diff >= 0 ? color.rgb(0, 150, 136, 20) : color.rgb(244, 67, 54, 20)
+    txt = "Δ " + deltaSign + formatVol(math.abs(delta)) + "\nVol " + formatVol(totalVol)
+    lblColor = delta >= 0 ? color.rgb(0, 150, 136, 20) : color.rgb(244, 67, 54, 20)
     label.new(midX, top, txt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_down, color=lblColor, textcolor=color.white, size=size.small)
 
 selectAutoTimeframe() =>
