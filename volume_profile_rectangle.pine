@@ -1,0 +1,273 @@
+//@version=6
+indicator("Volume Profile Rectangle", overlay=true, max_boxes_count=500, max_labels_count=500)
+
+// ============================================================================
+// INPUT SETTINGS - Define Rectangle Coordinates
+// ============================================================================
+
+// Use bars back instead of absolute dates (more reliable)
+use_bars_back = input.bool(true, "Use Bars Back (Recommended)", group="Rectangle Coordinates",
+     tooltip="When enabled, uses bar count instead of dates. More reliable for recent data.")
+
+// Bars back inputs (used when use_bars_back = true)
+bars_back_start = input.int(100, "Bars Back to Start", minval=1, maxval=5000, group="Rectangle Coordinates")
+bars_back_end = input.int(0, "Bars Back to End", minval=0, maxval=5000, group="Rectangle Coordinates")
+
+// Date Range Inputs (used when use_bars_back = false)
+start_date_input = input.time(timestamp("2024-01-01 00:00"), "Start Date/Time", group="Rectangle Coordinates")
+end_date_input = input.time(timestamp("2024-01-31 23:59"), "End Date/Time", group="Rectangle Coordinates")
+
+// Calculate actual start/end times based on mode
+start_date = use_bars_back ? time[math.min(bars_back_start, bar_index)] : start_date_input
+end_date = use_bars_back ? time[bars_back_end] : end_date_input
+
+// Price Range Inputs - Auto-calculate based on recent highs/lows
+auto_price = input.bool(true, "Auto-Calculate Price Range", group="Rectangle Coordinates",
+     tooltip="Automatically set price range based on recent price action")
+
+manual_top_price = input.float(100.0, "Manual Top Price", group="Rectangle Coordinates")
+manual_bottom_price = input.float(90.0, "Manual Bottom Price", group="Rectangle Coordinates")
+
+// Calculate price range
+float top_price = manual_top_price
+float bottom_price = manual_bottom_price
+
+if auto_price and use_bars_back
+    float range_high = high
+    float range_low = low
+
+    // Find high/low within the bar range
+    for i = 0 to math.min(bars_back_start, bar_index)
+        if high[i] > range_high
+            range_high := high[i]
+        if low[i] < range_low
+            range_low := low[i]
+
+    top_price := range_high
+    bottom_price := range_low
+
+// Visual Settings
+rect_color = input.color(color.new(color.blue, 85), "Rectangle Color", group="Visual Settings")
+rect_border_color = input.color(color.new(color.blue, 30), "Rectangle Border", group="Visual Settings")
+label_color = input.color(color.new(color.white, 0), "Label Text Color", group="Visual Settings")
+label_bg_color = input.color(color.new(color.blue, 20), "Label Background", group="Visual Settings")
+
+// Price Level Extension Lines
+show_extensions = input.bool(true, "Show Price Level Extensions", group="Price Level Extensions",
+     tooltip="Draw dashed lines extending left and right at top/bottom prices")
+extension_style = input.string("Dashed", "Line Style", options=["Solid", "Dashed", "Dotted"], group="Price Level Extensions")
+extension_color = input.color(color.new(color.blue, 0), "Line Color", group="Price Level Extensions")
+extension_width = input.int(1, "Line Width", minval=1, maxval=4, group="Price Level Extensions")
+
+// Volume Calculation Method
+volume_method = input.string("Total", "Volume Method", options=["Total", "Bar in Range", "Weighted"],
+     tooltip="Total: Sum all volume for bars in range\nBar in Range: Only bars fully within price range\nWeighted: Weight volume by % of bar within price range",
+     group="Calculation Settings")
+
+// Volume Delta Settings
+show_delta = input.bool(true, "Show Volume Delta", group="Volume Delta",
+     tooltip="Calculate and display buying vs selling volume delta using bar position method")
+
+// ============================================================================
+// VALIDATION
+// ============================================================================
+
+if bottom_price >= top_price
+    runtime.error("Bottom Price must be less than Top Price")
+
+// ============================================================================
+// CALCULATE VOLUME WITH LIMITED LOOKBACK (EFFICIENT METHOD)
+// ============================================================================
+
+// Function to calculate volume for a single bar
+calc_bar_volume(bar_h, bar_l, bar_c, bar_v) =>
+    float result = 0.0
+
+    if volume_method == "Total"
+        result := bar_v
+
+    else if volume_method == "Bar in Range"
+        if bar_h <= top_price and bar_l >= bottom_price
+            result := bar_v
+
+    else if volume_method == "Weighted"
+        bar_range = bar_h - bar_l
+
+        if bar_range > 0
+            overlap_top = math.min(bar_h, top_price)
+            overlap_bottom = math.max(bar_l, bottom_price)
+            overlap_range = math.max(0, overlap_top - overlap_bottom)
+            weight = overlap_range / bar_range
+            result := bar_v * weight
+        else
+            if bar_c >= bottom_price and bar_c <= top_price
+                result := bar_v
+    result
+
+// Function to calculate volume delta for a single bar
+// Uses bar position method: delta = volume * (2*close - high - low) / (high - low)
+// This estimates buying/selling pressure based on where close is within the bar range
+calc_bar_delta(bar_h, bar_l, bar_c, bar_v, weight) =>
+    float delta = 0.0
+
+    bar_range = bar_h - bar_l
+
+    if bar_range > 0
+        // Calculate position of close within the bar (-1 to +1)
+        // +1 = close at high (all buying), -1 = close at low (all selling), 0 = middle
+        position = (2 * bar_c - bar_h - bar_l) / bar_range
+        delta := bar_v * position * weight
+    else
+        // Bar has no range (high == low), delta is 0
+        delta := 0.0
+
+    delta
+
+// Calculate total volume and delta within rectangle
+total_volume = 0.0
+total_delta = 0.0
+
+// Determine how many bars to check
+bars_to_check = use_bars_back ? bars_back_start : math.min(bar_index, 5000)
+
+for i = 0 to math.min(bars_to_check, bar_index)
+    bar_time = time[i]
+
+    // Only include bars within the date range
+    if bar_time >= start_date and bar_time <= end_date
+        bar_vol = calc_bar_volume(high[i], low[i], close[i], volume[i])
+        total_volume += bar_vol
+
+        // Calculate delta if enabled
+        if show_delta
+            // Calculate weight based on volume method
+            weight = 1.0
+            if volume_method == "Bar in Range"
+                weight := (high[i] <= top_price and low[i] >= bottom_price) ? 1.0 : 0.0
+            else if volume_method == "Weighted"
+                bar_range = high[i] - low[i]
+                if bar_range > 0
+                    overlap_top = math.min(high[i], top_price)
+                    overlap_bottom = math.max(low[i], bottom_price)
+                    overlap_range = math.max(0, overlap_top - overlap_bottom)
+                    weight := overlap_range / bar_range
+
+            bar_delta = calc_bar_delta(high[i], low[i], close[i], volume[i], weight)
+            total_delta += bar_delta
+
+// ============================================================================
+// DRAW RECTANGLE AND LABEL
+// ============================================================================
+
+var box rect_box = na
+var label volume_label = na
+var line top_extension = na
+var line bottom_extension = na
+
+// Format volume with appropriate units
+format_volume(vol) =>
+    string result = ""
+    float abs_vol = math.abs(vol)
+    if abs_vol >= 1000000000
+        result := str.tostring(vol / 1000000000, "#.##") + "B"
+    else if abs_vol >= 1000000
+        result := str.tostring(vol / 1000000, "#.##") + "M"
+    else if abs_vol >= 1000
+        result := str.tostring(vol / 1000, "#.##") + "K"
+    else
+        result := str.tostring(vol, "#")
+    result
+
+// Build volume text
+volume_text = "Vol: " + format_volume(total_volume)
+
+// Add delta if enabled
+if show_delta
+    delta_prefix = total_delta >= 0 ? "Δ +" : "Δ "
+    volume_text := volume_text + "\n" + delta_prefix + format_volume(total_delta)
+
+// Calculate delta percentage
+delta_pct = total_volume != 0 ? (total_delta / total_volume) * 100 : 0
+
+// Determine label color based on delta
+label_bg_dynamic = show_delta ?
+     (total_delta > 0 ? color.new(color.green, 20) :
+      total_delta < 0 ? color.new(color.red, 20) :
+      label_bg_color) : label_bg_color
+
+// Only create/update objects on current bar to avoid hitting limits
+// This runs on every tick of real-time bar AND when new bars open
+if barstate.islast
+    // Delete old objects if they exist
+    if not na(rect_box)
+        box.delete(rect_box)
+    if not na(volume_label)
+        label.delete(volume_label)
+    if not na(top_extension)
+        line.delete(top_extension)
+    if not na(bottom_extension)
+        line.delete(bottom_extension)
+
+    // Create new rectangle box
+    rect_box := box.new(
+         left=start_date,
+         top=top_price,
+         right=end_date,
+         bottom=bottom_price,
+         bgcolor=rect_color,
+         border_color=rect_border_color,
+         border_width=2,
+         xloc=xloc.bar_time
+     )
+
+    // Create label at top-right corner of rectangle
+    volume_label := label.new(
+         x=end_date,
+         y=top_price - 1,
+         text=volume_text,
+         style=label.style_label_left,
+         color=label_bg_dynamic,
+         textcolor=label_color,
+         size=size.small,
+         xloc=xloc.bar_time
+     )
+
+    // Create price level extension lines if enabled
+    if show_extensions
+        // Determine line style
+        line_style = extension_style == "Solid" ? line.style_solid :
+                     extension_style == "Dashed" ? line.style_dashed :
+                     line.style_dotted
+
+        // Create top price extension line (extends both left and right)
+        top_extension := line.new(
+             x1=start_date,
+             y1=top_price,
+             x2=end_date,
+             y2=top_price,
+             xloc=xloc.bar_time,
+             extend=extend.both,
+             color=extension_color,
+             style=line_style,
+             width=extension_width
+         )
+
+        // Create bottom price extension line (extends both left and right)
+        bottom_extension := line.new(
+             x1=start_date,
+             y1=bottom_price,
+             x2=end_date,
+             y2=bottom_price,
+             xloc=xloc.bar_time,
+             extend=extend.both,
+             color=extension_color,
+             style=line_style,
+             width=extension_width
+         )
+
+// ============================================================================
+// DEBUG: Plot volume and bar info
+// ============================================================================
+
+// Uncomment to see volume plotted at the bottom for debugging
+//plot(total_volume, "Total Volume", color=color.new(color.blue, 80), display=display.data_window)
