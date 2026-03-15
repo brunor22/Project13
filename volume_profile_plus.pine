@@ -351,7 +351,18 @@ method update(VP this) =>
     if not na(this.poly)
         this.poly.delete()
     this.poly := this.drawHistogram(xs, baseX, step, height, COLOR)
-    // Draw the delta histograms.
+    // Draw the POC filter highlight overlay.
+    // Bars whose volume >= (POC volume * POC_FILTER_PERCENT) are highlighted with POC_FILTER_COLOR.
+    // All other bars are rendered with zero width (x == baseX) so they remain invisible.
+    if SHOW_POC_FILTER
+        float filterThreshold = maxVol * POC_FILTER_PERCENT
+        int[] filterXs = array.new_int()
+        for [i, vol] in dist
+            filterXs.push(vol >= filterThreshold ? xs.get(i) : baseX)
+        if not na(this.filterPoly)
+            this.filterPoly.delete()
+        this.filterPoly := this.drawHistogram(filterXs, baseX, step, height, POC_FILTER_COLOR)
+    // Draw the delta histograms on top of both the base and filter profiles.
     if SHOW_DELTA
         int[] buyXs = array.new_int()
         int[] sellXs = array.new_int()
@@ -366,17 +377,6 @@ method update(VP this) =>
         if not na(this.sellPoly)
             this.sellPoly.delete()
         this.sellPoly := this.drawHistogram(sellXs, baseX, step, height, SELL_COLOR)
-    // Draw the POC filter highlight overlay.
-    // Bars whose volume >= (POC volume * POC_FILTER_PERCENT) are highlighted with POC_FILTER_COLOR.
-    // All other bars are rendered with zero width (x == baseX) so they remain invisible.
-    if SHOW_POC_FILTER
-        float filterThreshold = maxVol * POC_FILTER_PERCENT
-        int[] filterXs = array.new_int()
-        for [i, vol] in dist
-            filterXs.push(vol >= filterThreshold ? xs.get(i) : baseX)
-        if not na(this.filterPoly)
-            this.filterPoly.delete()
-        this.filterPoly := this.drawHistogram(filterXs, baseX, step, height, POC_FILTER_COLOR)
     // Calculate the cumulative distribution.
     float[] cumdist = dist.copy()
     for i = 1 to cumdist.size() - 1
