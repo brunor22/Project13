@@ -2,9 +2,10 @@
 indicator("Moving VWAP", overlay=true)
 
 // Inputs
-cumulativePeriod1 = input.int(14, title="VWAP Period 1", minval=1)
-cumulativePeriod2 = input.int(28, title="VWAP Period 2", minval=1)
-LineWidth         = input.int(2,  title="Line Width",    minval=1)
+cumulativePeriod1 = input.int(14, title="VWAP Period 1",          minval=1)
+cumulativePeriod2 = input.int(28, title="VWAP Period 2",          minval=1)
+LineWidth         = input.int(2,  title="Line Width",              minval=1)
+maxCrossLines     = input.int(1,  title="Crossover Lines to Show", minval=1, maxval=20)
 
 // Typical price
 typicalPrice       = (open + high + low + close) / 4
@@ -25,31 +26,27 @@ lineColor := ta.crossover(vwapValue1, vwapValue2)  ? color.green :
 // Single plotted line
 plot(vwapValue1, title="Moving VWAP", color=lineColor, linewidth=LineWidth)
 
-// ── Horizontal crossover/crossunder line projected to the right ──────────────
-// Draws a dashed horizontal line at the price of the most recent crossover,
-// extended to the right edge of the chart.  Green = bullish cross, Red = bearish.
-var line crossoverLine = na
+// ── Horizontal crossover/crossunder lines projected to the right ─────────────
+// Keeps up to maxCrossLines historical lines.  Each new cross pushes the oldest
+// out of the array and deletes it from the chart.
+// Green dashed = bullish crossover, Red dashed = bearish crossunder.
+var line[] crossoverLines = array.new_line()
 
-if ta.crossover(vwapValue1, vwapValue2)
-    line.delete(crossoverLine)
-    crossoverLine := line.new(
+if ta.crossover(vwapValue1, vwapValue2) or ta.crossunder(vwapValue1, vwapValue2)
+    crossColor = ta.crossover(vwapValue1, vwapValue2) ? color.green : color.red
+
+    newLine = line.new(
          x1     = bar_index,
          y1     = vwapValue1,
          x2     = bar_index + 1,
          y2     = vwapValue1,
          extend = extend.right,
-         color  = color.green,
+         color  = crossColor,
          style  = line.style_dashed,
          width  = LineWidth)
 
-else if ta.crossunder(vwapValue1, vwapValue2)
-    line.delete(crossoverLine)
-    crossoverLine := line.new(
-         x1     = bar_index,
-         y1     = vwapValue1,
-         x2     = bar_index + 1,
-         y2     = vwapValue1,
-         extend = extend.right,
-         color  = color.red,
-         style  = line.style_dashed,
-         width  = LineWidth)
+    array.push(crossoverLines, newLine)
+
+    // Evict oldest lines that exceed the user-defined limit
+    while array.size(crossoverLines) > maxCrossLines
+        line.delete(array.shift(crossoverLines))
