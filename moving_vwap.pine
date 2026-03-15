@@ -40,7 +40,7 @@ var line[] crossoverLines = array.new_line()
 if isCrossover or isCrossunder
     crossColor = isCrossover ? color.green : color.red
 
-    crossPrice = vwapValue1 + lineOffset
+    crossPrice = vwapValue1 + (isCrossover ? lineOffset : -lineOffset)
 
     newLine = line.new(
          x1     = bar_index,
