@@ -1,0 +1,55 @@
+//@version=6
+indicator("Moving VWAP", overlay=true)
+
+// Inputs
+cumulativePeriod1 = input.int(14, title="VWAP Period 1", minval=1)
+cumulativePeriod2 = input.int(28, title="VWAP Period 2", minval=1)
+LineWidth         = input.int(2,  title="Line Width",    minval=1)
+
+// Typical price
+typicalPrice       = (open + high + low + close) / 4
+typicalPriceVolume = typicalPrice * volume
+
+// Moving VWAP – Period 1
+vwapValue1 = math.sum(typicalPriceVolume, cumulativePeriod1) / math.sum(volume, cumulativePeriod1)
+
+// Moving VWAP – Period 2
+vwapValue2 = math.sum(typicalPriceVolume, cumulativePeriod2) / math.sum(volume, cumulativePeriod2)
+
+// Persist color across bars; initialise from the first valid comparison
+var color lineColor = na
+lineColor := ta.crossover(vwapValue1, vwapValue2)  ? color.green :
+             ta.crossunder(vwapValue1, vwapValue2) ? color.red   :
+             nz(lineColor, vwapValue1 >= vwapValue2 ? color.green : color.red)
+
+// Single plotted line
+plot(vwapValue1, title="Moving VWAP", color=lineColor, linewidth=LineWidth)
+
+// ── Horizontal crossover/crossunder line projected to the right ──────────────
+// Draws a dashed horizontal line at the price of the most recent crossover,
+// extended to the right edge of the chart.  Green = bullish cross, Red = bearish.
+var line crossoverLine = na
+
+if ta.crossover(vwapValue1, vwapValue2)
+    line.delete(crossoverLine)
+    crossoverLine := line.new(
+         x1     = bar_index,
+         y1     = vwapValue1,
+         x2     = bar_index + 1,
+         y2     = vwapValue1,
+         extend = extend.right,
+         color  = color.green,
+         style  = line.style_dashed,
+         width  = LineWidth)
+
+else if ta.crossunder(vwapValue1, vwapValue2)
+    line.delete(crossoverLine)
+    crossoverLine := line.new(
+         x1     = bar_index,
+         y1     = vwapValue1,
+         x2     = bar_index + 1,
+         y2     = vwapValue1,
+         extend = extend.right,
+         color  = color.red,
+         style  = line.style_dashed,
+         width  = LineWidth)
