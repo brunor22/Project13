@@ -27,13 +27,17 @@ lineColor := ta.crossover(vwapValue1, vwapValue2)  ? color.green :
 plot(vwapValue1, title="Moving VWAP", color=lineColor, linewidth=LineWidth)
 
 // ── Horizontal crossover/crossunder lines projected to the right ─────────────
+// Evaluate unconditionally every bar so both functions maintain correct history.
 // Keeps up to maxCrossLines historical lines.  Each new cross pushes the oldest
 // out of the array and deletes it from the chart.
 // Green dashed = bullish crossover, Red dashed = bearish crossunder.
+isCrossover  = ta.crossover(vwapValue1, vwapValue2)
+isCrossunder = ta.crossunder(vwapValue1, vwapValue2)
+
 var line[] crossoverLines = array.new_line()
 
-if ta.crossover(vwapValue1, vwapValue2) or ta.crossunder(vwapValue1, vwapValue2)
-    crossColor = ta.crossover(vwapValue1, vwapValue2) ? color.green : color.red
+if isCrossover or isCrossunder
+    crossColor = isCrossover ? color.green : color.red
 
     newLine = line.new(
          x1     = bar_index,
