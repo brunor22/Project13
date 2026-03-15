@@ -44,9 +44,9 @@ if isCrossover or isCrossunder
     crossPrice = vwapValue1 + (isCrossover ? lineOffset : -lineOffset)
 
     newLine = line.new(
-         x1     = bar_index,
+         x1     = bar_index - 1,
          y1     = crossPrice,
-         x2     = bar_index + 1,
+         x2     = bar_index,
          y2     = crossPrice,
          extend = extend.right,
          color  = crossColor,
