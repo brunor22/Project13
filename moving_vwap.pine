@@ -18,22 +18,23 @@ vwapValue1 = math.sum(typicalPriceVolume, cumulativePeriod1) / math.sum(volume, 
 // Moving VWAP – Period 2
 vwapValue2 = math.sum(typicalPriceVolume, cumulativePeriod2) / math.sum(volume, cumulativePeriod2)
 
+// Evaluate unconditionally every bar so both functions maintain correct history
+isCrossover  = ta.crossover(vwapValue1, vwapValue2)
+isCrossunder = ta.crossunder(vwapValue1, vwapValue2)
+
 // Persist color across bars; initialise from the first valid comparison
 var color lineColor = na
-lineColor := ta.crossover(vwapValue1, vwapValue2)  ? color.green :
-             ta.crossunder(vwapValue1, vwapValue2) ? color.red   :
+lineColor := isCrossover  ? color.green :
+             isCrossunder ? color.red   :
              nz(lineColor, vwapValue1 >= vwapValue2 ? color.green : color.red)
 
 // Single plotted line
 plot(vwapValue1, title="Moving VWAP", color=lineColor, linewidth=LineWidth)
 
 // ── Horizontal crossover/crossunder lines projected to the right ─────────────
-// Evaluate unconditionally every bar so both functions maintain correct history.
 // Keeps up to maxCrossLines historical lines.  Each new cross pushes the oldest
 // out of the array and deletes it from the chart.
 // Green dashed = bullish crossover, Red dashed = bearish crossunder.
-isCrossover  = ta.crossover(vwapValue1, vwapValue2)
-isCrossunder = ta.crossunder(vwapValue1, vwapValue2)
 
 var line[] crossoverLines = array.new_line()
 
