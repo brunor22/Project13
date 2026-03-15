@@ -5,7 +5,8 @@ indicator("Moving VWAP", overlay=true)
 cumulativePeriod1 = input.int(14, title="VWAP Period 1",          minval=1)
 cumulativePeriod2 = input.int(28, title="VWAP Period 2",          minval=1)
 LineWidth         = input.int(2,  title="Line Width",              minval=1)
-maxCrossLines     = input.int(1,  title="Crossover Lines to Show", minval=1, maxval=20)
+maxCrossLines     = input.int(1,   title="Crossover Lines to Show", minval=1, maxval=20)
+lineOffset        = input.float(0.0, title="Cross Line Price Offset", step=0.01)
 
 // Typical price
 typicalPrice       = (open + high + low + close) / 4
@@ -39,11 +40,13 @@ var line[] crossoverLines = array.new_line()
 if isCrossover or isCrossunder
     crossColor = isCrossover ? color.green : color.red
 
+    crossPrice = vwapValue1 + lineOffset
+
     newLine = line.new(
          x1     = bar_index,
-         y1     = vwapValue1,
+         y1     = crossPrice,
          x2     = bar_index + 1,
-         y2     = vwapValue1,
+         y2     = crossPrice,
          extend = extend.right,
          color  = crossColor,
          style  = line.style_dashed,
