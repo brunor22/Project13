@@ -1,0 +1,107 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// @version=6
+indicator("Weekly Monthly Highs & Lows", "WM HL", true, max_lines_count=500)
+
+//--------------------------------------------------------------------
+//                             Constants
+//--------------------------------------------------------------------
+var WEEKLY_LINE_STYLE  = line.style_solid
+var WEEKLY_LINE_WIDTH  = 2
+var MONTHLY_LINE_STYLE = line.style_solid
+var MONTHLY_LINE_WIDTH = 3
+
+//--------------------------------------------------------------------
+//                               Inputs
+//--------------------------------------------------------------------
+g_indicator            = "Highs & Lows"
+var i_isWeeklyEnabled  = input(true,         "Weekly",  inline="Weekly",  group=g_indicator)
+var i_weeklyColor      = input(color.orange, "",        inline="Weekly",  group=g_indicator)
+var i_isMonthlyEnabled = input(true,         "Monthly", inline="Monthly", group=g_indicator)
+var i_monthlyColor     = input(color.red,    "",        inline="Monthly", group=g_indicator)
+
+//--------------------------------------------------------------------
+//                        Variables declarations
+//--------------------------------------------------------------------
+var a_lastHighs = array.new_float(2)
+var a_lastLows  = array.new_float(2)
+
+var canShowWeekly  = i_isWeeklyEnabled  and (timeframe.isintraday or timeframe.isdaily)
+var canShowMonthly = i_isMonthlyEnabled and not timeframe.ismonthly
+
+[weeklyTime,  weeklyHigh,  weeklyLow,  isLastWeekly]  = request.security(syminfo.tickerid, 'W', [time, high, low, barstate.islast], lookahead=barmerge.lookahead_on)
+[monthlyTime, monthlyHigh, monthlyLow, isLastMonthly] = request.security(syminfo.tickerid, 'M', [time, high, low, barstate.islast], lookahead=barmerge.lookahead_on)
+
+hasWeeklyTimeChanged  = weeklyTime  != weeklyTime[1]
+hasMonthlyTimeChanged = monthlyTime != monthlyTime[1]
+
+//--------------------------------------------------------------------
+//                              Functions
+//--------------------------------------------------------------------
+f_draw(bool _isNew, float _h, float _l, color _color, string _style, int _width) =>
+    var line _high = na
+    var line _low  = na
+    var _highs     = array.new_line()
+    var _lows      = array.new_line()
+
+    if _isNew
+        line.set_x2(_high, bar_index)
+        line.set_x2(_low,  bar_index)
+        _high := line.new(bar_index, _h, bar_index, _h, color=_color, style=_style, width=_width)
+        _low  := line.new(bar_index, _l, bar_index, _l, color=_color, style=_style, width=_width)
+        array.push(_highs, _high)
+        array.push(_lows,  _low)
+        // Keep only the previous period's line (1 lookback)
+        if array.size(_highs) > 2
+            line.delete(array.shift(_highs))
+            line.delete(array.shift(_lows))
+
+//--------------------------------------------------------------------
+//                                Logic
+//--------------------------------------------------------------------
+if canShowWeekly and hasWeeklyTimeChanged and not isLastWeekly
+    array.set(a_lastHighs, 0, weeklyHigh)
+    array.set(a_lastLows,  0, weeklyLow)
+
+if canShowMonthly and hasMonthlyTimeChanged and not isLastMonthly
+    array.set(a_lastHighs, 1, monthlyHigh)
+    array.set(a_lastLows,  1, monthlyLow)
+
+//--------------------------------------------------------------------
+//                          Plotting & styling
+//--------------------------------------------------------------------
+if canShowWeekly
+    f_draw(hasWeeklyTimeChanged, weeklyHigh, weeklyLow, i_weeklyColor, WEEKLY_LINE_STYLE, WEEKLY_LINE_WIDTH)
+
+if canShowMonthly
+    f_draw(hasMonthlyTimeChanged, monthlyHigh, monthlyLow, i_monthlyColor, MONTHLY_LINE_STYLE, MONTHLY_LINE_WIDTH)
+
+// Invisible plots for screener values, status line, scale, and data window
+plot(array.get(a_lastHighs, 0), "WH", color.new(i_weeklyColor,  100), editable=true)
+plot(array.get(a_lastLows,  0), "WL", color.new(i_weeklyColor,  100), editable=true)
+plot(array.get(a_lastHighs, 1), "MH", color.new(i_monthlyColor, 100), editable=true)
+plot(array.get(a_lastLows,  1), "ML", color.new(i_monthlyColor, 100), editable=true)
+
+// Labels
+LabelH2 = label.new(bar_index + 15, array.get(a_lastHighs, 0), style=label.style_label_center)
+label.set_text(LabelH2, "WHi - " + str.tostring(array.get(a_lastHighs, 0), "#.00"))
+label.set_textcolor(LabelH2, color.rgb(0, 0, 0))
+label.set_color(LabelH2, color.rgb(202, 202, 236))
+label.delete(LabelH2[1])
+
+LabelL2 = label.new(bar_index + 15, array.get(a_lastLows, 0), style=label.style_label_center)
+label.set_text(LabelL2, "WLo - " + str.tostring(array.get(a_lastLows, 0), "#.00"))
+label.set_textcolor(LabelL2, color.rgb(0, 0, 0))
+label.set_color(LabelL2, color.rgb(241, 199, 199))
+label.delete(LabelL2[1])
+
+LabelH3 = label.new(bar_index + 2, array.get(a_lastHighs, 1), style=label.style_label_center)
+label.set_text(LabelH3, "MHi - " + str.tostring(array.get(a_lastHighs, 1), "#.00"))
+label.set_textcolor(LabelH3, color.rgb(0, 0, 0))
+label.set_color(LabelH3, color.rgb(202, 202, 236))
+label.delete(LabelH3[1])
+
+LabelL3 = label.new(bar_index + 2, array.get(a_lastLows, 1), style=label.style_label_center)
+label.set_text(LabelL3, "MLo - " + str.tostring(array.get(a_lastLows, 1), "#.00"))
+label.set_textcolor(LabelL3, color.rgb(0, 0, 0))
+label.set_color(LabelL3, color.rgb(241, 199, 199))
+label.delete(LabelL3[1])
