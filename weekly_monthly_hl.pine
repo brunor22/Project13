@@ -27,7 +27,8 @@ if monthlyTime != monthlyTime[1] and not isLastMonthly
 //--------------------------------------------------------------------
 //                               Plots
 //--------------------------------------------------------------------
-plot(prevWeeklyHigh,  "WH", display=display.data_window + display.status_line)
-plot(prevWeeklyLow,   "WL", display=display.data_window + display.status_line)
-plot(prevMonthlyHigh, "MH", display=display.data_window + display.status_line)
-plot(prevMonthlyLow,  "ML", display=display.data_window + display.status_line)
+plot(close,           "Price", display=display.data_window + display.status_line)
+plot(prevWeeklyHigh,  "WH",    display=display.data_window + display.status_line)
+plot(prevWeeklyLow,   "WL",    display=display.data_window + display.status_line)
+plot(prevMonthlyHigh, "MH",    display=display.data_window + display.status_line)
+plot(prevMonthlyLow,  "ML",    display=display.data_window + display.status_line)
