@@ -32,3 +32,9 @@ plot(prevWeeklyHigh,  "WH",    display=display.data_window + display.status_line
 plot(prevWeeklyLow,   "WL",    display=display.data_window + display.status_line)
 plot(prevMonthlyHigh, "MH",    display=display.data_window + display.status_line)
 plot(prevMonthlyLow,  "ML",    display=display.data_window + display.status_line)
+
+weekFilter  = close > prevWeeklyHigh  ? 1 : close < prevWeeklyLow  ? -1 : 0
+monthFilter = close > prevMonthlyHigh ? 1 : close < prevMonthlyLow ? -1 : 0
+
+plot(weekFilter,  "WeekFilter",  display=display.data_window + display.status_line)
+plot(monthFilter, "MonthFilter", display=display.data_window + display.status_line)
