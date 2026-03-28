@@ -1,0 +1,36 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © allanster
+
+//@version=6
+indicator("BR - RangeAnalysis 10")
+
+bump = input(true, '', inline = '1') // Enable/Disable offset of origin bar.
+date = input.time(timestamp("19 Feb 2022 00:00 +0000"), "Shift Origin To", tooltip = 'When enabled use this offset for origin bar of data range.', inline = '1')
+
+// Robust: find first bar at or after the date boundary (avoids exact timestamp mismatch)
+indx = not bump ? 0 : ta.valuewhen(time >= date and (na(time[1]) or time[1] < date), bar_index, 0)
+
+var data10 = array.new_float() // Create data array.
+
+if bar_index == indx and array.size(data10) == 0 // Guard against re-population on bar replay
+    // Paste CSV 👇 Example Normalized Data From Yahoo Finance BTCUSD Daily Close From February 19th, 2022 Thru February 19th, 2023.
+    // Split across multiple lines to avoid editor tokenization limits:
+    data10 := array.from(
+         // --- PASTE DATA CHUNK 1 HERE (e.g. values 1–100) ---
+         // --- PASTE DATA CHUNK 2 HERE (e.g. values 101–200) ---
+         // --- PASTE DATA CHUNK 3 HERE (e.g. values 201–300) ---
+         // ... continue as needed ...
+         float(na) // placeholder — remove this line when data is pasted
+         )
+
+    array.reverse(data10) // Reverse index the data so that pop may be used instead of shift.
+
+// Fix: use if/else instead of ternary to prevent array.pop() being called on an empty array.
+// (PineScript always evaluates both branches of ?:, so the ternary version causes a
+//  runtime "Index out of bounds" error on every bar before the origin.)
+float csvValue = na
+if array.size(data10) > 0
+    csvValue := array.pop(data10)
+
+plot(csvValue, 'csv', #0000ff) // Plot and shrink dataset for bars within data range.
+h0 = hline(0, "ZeroLine", color=#606060, linestyle=hline.style_dotted)
