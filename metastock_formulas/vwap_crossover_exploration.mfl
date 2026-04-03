@@ -1,0 +1,14 @@
+{9 & 18 Period MA VWAP Crossover Exploration}
+{Returns 1 when 9-period VWAP crosses above or below 18-period VWAP}
+
+{Typical Price}
+TP := (H + L + C) / 3;
+
+{9-period Volume Weighted Average Price}
+VWAP9 := Sum(TP * V, 9) / Sum(V, 9);
+
+{18-period Volume Weighted Average Price}
+VWAP18 := Sum(TP * V, 18) / Sum(V, 18);
+
+{Detect crossover in either direction}
+If(Cross(VWAP9, VWAP18) OR Cross(VWAP18, VWAP9), 1, 0)
