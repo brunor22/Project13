@@ -28,6 +28,7 @@ var MONTHLY_LINE_WIDTH  = 6
 g_indicator             = "Highs & Lows"
 g_style                 = "Style"
 g_vwap                  = "Moving VWAP"
+g_hilo                  = "HiLo Range"
 t_heads                 = "Extends previous highs and lows in the future."
 t_gradient              = "Show a color gradient that highlights the recency of highs and lows."
 
@@ -43,6 +44,8 @@ var i_monthlyLookback   = input.int (1,             "", 1,                      
 var i_areHeadsEnabled   = input     (false,         "Show Projections", t_heads,    inline="Head",      group=g_style)
 var i_rightOffset       = input.int (20,            "", 1,                          inline="Head",      group=g_style)
 var i_hasGradient       = input     (true,          "Show Gradient",    t_gradient,                     group=g_style)
+
+hiloLookback            = input.int (20,            "Lookback",         minval=1,                       group=g_hilo)
 
 cumulativePeriod1       = input.int (14,            "VWAP Period 1",    minval=1,                       group=g_vwap)
 cumulativePeriod2       = input.int (28,            "VWAP Period 2",    minval=1,                       group=g_vwap)
@@ -249,3 +252,15 @@ sharesOutstanding = request.financial(syminfo.tickerid, "TOTAL_SHARES_OUTSTANDIN
 marketCap = close * sharesOutstanding
 
 plot(marketCap, title="Market Cap", color=color.new(color.silver, 100), editable=true)
+
+//--------------------------------------------------------------------
+//                        HiLo Range Columns
+//--------------------------------------------------------------------
+
+hiloHigh   = ta.highest(hiloLookback)
+hiloLow    = ta.lowest(hiloLookback)
+hiloPct    = (hiloHigh - hiloLow) != 0 ? (close - hiloLow) / (hiloHigh - hiloLow) * 100 : 0.0
+
+plot(hiloHigh, title="Period High",      color=color.new(color.blue,  100), editable=true)
+plot(hiloLow,  title="Period Low",       color=color.new(color.blue,  100), editable=true)
+plot(hiloPct,  title="% in HiLo Range", color=color.new(color.blue,  100), editable=true)
