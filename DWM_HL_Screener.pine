@@ -240,3 +240,11 @@ plot(isCrossover  ? 1 : 0, title="VWAP Crossover",  color=color.new(color.green,
 plot(isCrossunder ? 1 : 0, title="VWAP Crossunder", color=color.new(color.red,   100), editable=true)
 plot(is_above_vwap1, title="Above VWAP 1",    color=color.new(color.teal,   100), editable=true)
 plot(is_above_vwap2, title="Above VWAP 2",    color=color.new(color.purple, 100), editable=true)
+
+//--------------------------------------------------------------------
+//                        Market Cap Column
+//--------------------------------------------------------------------
+
+marketCap = request.financial(syminfo.tickerid, "MARKET_CAP", "FQ", ignore_invalid_symbol=true)
+
+plot(marketCap, title="Market Cap", color=color.new(color.silver, 100), editable=true)
