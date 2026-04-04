@@ -245,6 +245,6 @@ plot(is_above_vwap2, title="Above VWAP 2",    color=color.new(color.purple, 100)
 //                        Market Cap Column
 //--------------------------------------------------------------------
 
-marketCap = request.financial(syminfo.tickerid, "MARKET_CAP", "FQ", ignore_invalid_symbol=true)
+marketCap = request.financial(syminfo.tickerid, "MARKET_CAP", "FQ", gaps=barmerge.gaps_off, ignore_invalid_symbol=true)
 
 plot(marketCap, title="Market Cap", color=color.new(color.silver, 100), editable=true)
