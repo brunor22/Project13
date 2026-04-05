@@ -272,6 +272,22 @@ plot(hiloLow,  title="Period Low",       color=color.new(color.blue,  0), editab
 plot(hiloPct,  title="% in HiLo Range", color=color.new(color.blue,  0), editable=true)
 
 //--------------------------------------------------------------------
+//                        Sector / Industry Debug Label
+// Shows the exact strings TradingView returns for this symbol.
+// Remove once switch cases are confirmed correct.
+//--------------------------------------------------------------------
+
+var label debugLabel = na
+if barstate.islast
+    label.delete(debugLabel)
+    debugLabel := label.new(bar_index + 2, close,
+         text      = "sector: '" + syminfo.sector + "'\nindustry: '" + syminfo.industry + "'",
+         style     = label.style_label_left,
+         color     = color.white,
+         textcolor = color.black,
+         size      = size.normal)
+
+//--------------------------------------------------------------------
 //                        Sector Column
 // syminfo.sector returns a TradingView string (not GICS standard names).
 // Mapped to simple 1-11 codes. 0 = unknown / not applicable.
