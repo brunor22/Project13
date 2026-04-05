@@ -272,6 +272,16 @@ plot(hiloLow,  title="Period Low",       color=color.new(color.blue,  0), editab
 plot(hiloPct,  title="% in HiLo Range", color=color.new(color.blue,  0), editable=true)
 
 //--------------------------------------------------------------------
+//                   Sector / Industry Diagnostic
+// Plots the string length of syminfo.sector and syminfo.industry.
+// In the screener: if "Sector Len" shows > 0, the string is populated.
+// If it shows 0 or na, syminfo.sector is unavailable in screener mode.
+//--------------------------------------------------------------------
+
+plot(nz(str.length(syminfo.sector),   -1), title="Sector Len",   color=color.new(color.gray, 100), editable=false)
+plot(nz(str.length(syminfo.industry), -1), title="Industry Len", color=color.new(color.gray, 100), editable=false)
+
+//--------------------------------------------------------------------
 //                        Sector Column
 // FactSet Economic Sector classification as used by TradingView.
 // Uses if/else instead of switch — more reliable in screener context.
