@@ -272,199 +272,192 @@ plot(hiloLow,  title="Period Low",       color=color.new(color.blue,  0), editab
 plot(hiloPct,  title="% in HiLo Range", color=color.new(color.blue,  0), editable=true)
 
 //--------------------------------------------------------------------
-//                        Sector / Industry Debug Label
-// Shows the exact strings TradingView returns for this symbol.
-// Remove once switch cases are confirmed correct.
-//--------------------------------------------------------------------
-
-var label debugLabel = na
-if barstate.islast
-    label.delete(debugLabel)
-    debugLabel := label.new(bar_index + 2, close,
-         text      = "sector: '" + syminfo.sector + "'\nindustry: '" + syminfo.industry + "'",
-         style     = label.style_label_left,
-         color     = color.white,
-         textcolor = color.black,
-         size      = size.normal)
-
-//--------------------------------------------------------------------
 //                        Sector Column
-// syminfo.sector returns a TradingView string (not GICS standard names).
-// Mapped to simple 1-11 codes. 0 = unknown / not applicable.
+// FactSet Economic Sector classification as used by TradingView.
+// Codes 1-20. 0 = unknown / not applicable.
 //--------------------------------------------------------------------
 
 sectorCode = switch syminfo.sector
-    "Energy"                  => 1
-    "Basic Materials"         => 2
-    "Industrials"             => 3
-    "Consumer Cyclical"       => 4
-    "Consumer Defensive"      => 5
-    "Healthcare"              => 6
-    "Financial Services"      => 7
-    "Technology"              => 8
-    "Communication Services"  => 9
-    "Utilities"               => 10
-    "Real Estate"             => 11
+    "Non-Energy Minerals"    => 1
+    "Producer Manufacturing" => 2
+    "Electronic Technology"  => 3
+    "Consumer Durables"      => 4
+    "Energy Minerals"        => 5
+    "Process Industries"     => 6
+    "Health Technology"      => 7
+    "Consumer Non-Durables"  => 8
+    "Industrial Services"    => 9
+    "Commercial Services"    => 10
+    "Distribution Services"  => 11
+    "Technology Services"    => 12
+    "Health Services"        => 13
+    "Consumer Services"      => 14
+    "Retail Trade"           => 15
+    "Transportation"         => 16
+    "Utilities"              => 17
+    "Finance"                => 18
+    "Communications"         => 19
+    "Miscellaneous"          => 20
     => 0
 
 plot(sectorCode, title="Sector", color=color.new(#1447df, 0), editable=true)
 
 //--------------------------------------------------------------------
 //                        Industry Column
-// syminfo.industry returns TradingView strings (not GICS standard names).
-// Encoded as integers grouped by sector. 0 = unknown / not applicable.
+// FactSet Industry classification as used by TradingView.
+// Codes grouped by sector (sector * 100 + sequence). 0 = unknown.
 //--------------------------------------------------------------------
 
 industryCode = switch syminfo.industry
-    // Energy (1xx)
-    "Oil & Gas Drilling"                       => 101
-    "Oil & Gas E&P"                            => 102
-    "Oil & Gas Equipment & Services"           => 103
-    "Oil & Gas Integrated"                     => 104
-    "Oil & Gas Midstream"                      => 105
-    "Oil & Gas Refining & Marketing"           => 106
-    "Thermal Coal"                             => 107
-    "Uranium"                                  => 108
-    // Basic Materials (2xx)
-    "Agricultural Inputs"                      => 201
-    "Aluminum"                                 => 202
-    "Building Materials"                       => 203
-    "Chemicals"                                => 204
-    "Coking Coal"                              => 205
-    "Copper"                                   => 206
-    "Gold"                                     => 207
-    "Lumber & Wood Production"                 => 208
-    "Other Industrial Metals & Mining"         => 209
-    "Other Precious Metals & Mining"           => 210
-    "Paper & Paper Products"                   => 211
-    "Silver"                                   => 212
-    "Specialty Chemicals"                      => 213
-    "Steel"                                    => 214
-    // Industrials (3xx)
-    "Aerospace & Defense"                      => 301
-    "Airlines"                                 => 302
-    "Airports & Air Services"                  => 303
-    "Business Equipment & Supplies"            => 304
-    "Conglomerates"                            => 305
-    "Consulting & Outsourcing"                 => 306
-    "Engineering & Construction"               => 307
-    "Farm & Heavy Construction Machinery"      => 308
-    "Industrial Distribution"                  => 309
-    "Infrastructure Operations"                => 310
-    "Integrated Shipping & Logistics"          => 311
-    "Marine Shipping"                          => 312
-    "Railroads"                                => 313
-    "Rental & Leasing Services"                => 314
-    "Security & Protection Services"           => 315
-    "Specialty Industrial Machinery"           => 316
-    "Staffing & Employment Services"           => 317
-    "Tools & Accessories"                      => 318
-    "Trucking"                                 => 319
-    "Waste Management"                         => 320
-    // Consumer Cyclical (4xx)
-    "Apparel Manufacturing"                    => 401
-    "Apparel Retail"                           => 402
-    "Auto & Truck Dealerships"                 => 403
-    "Auto Manufacturers"                       => 404
-    "Auto Parts"                               => 405
-    "Department Stores"                        => 406
-    "Discount Stores"                          => 407
-    "Footwear & Accessories"                   => 408
-    "Furnishings, Fixtures & Appliances"       => 409
-    "Gambling"                                 => 410
-    "Home Improvement Retail"                  => 411
-    "Internet Retail"                          => 412
-    "Leisure"                                  => 413
-    "Lodging"                                  => 414
-    "Luxury Goods"                             => 415
-    "Packaging & Containers"                   => 416
-    "Personal Services"                        => 417
-    "Recreational Vehicles"                    => 418
-    "Residential Construction"                 => 419
-    "Resorts & Casinos"                        => 420
-    "Restaurants"                              => 421
-    "Specialty Retail"                         => 422
-    "Textile Manufacturing"                    => 423
-    "Travel Services"                          => 424
-    // Consumer Defensive (5xx)
-    "Beverages - Alcoholic"                    => 501
-    "Beverages - Non-Alcoholic"                => 502
-    "Beverages - Wineries & Distilleries"      => 503
-    "Confectioners"                            => 504
-    "Education & Training Services"            => 505
-    "Farm Products"                            => 506
-    "Food Distribution"                        => 507
-    "Grocery Stores"                           => 508
-    "Household & Personal Products"            => 509
-    "Packaged Foods"                           => 510
-    "Tobacco"                                  => 511
-    // Healthcare (6xx)
-    "Biotechnology"                            => 601
-    "Diagnostics & Research"                   => 602
-    "Drug Manufacturers - General"             => 603
-    "Drug Manufacturers - Specialty & Generic" => 604
-    "Health Care Plans"                        => 605
-    "Health Care Providers"                    => 606
-    "Health Information Services"              => 607
-    "Medical Care Facilities"                  => 608
-    "Medical Devices"                          => 609
-    "Medical Distribution"                     => 610
-    "Medical Instruments & Supplies"           => 611
-    "Pharmaceutical Retailers"                 => 612
-    // Financial Services (7xx)
-    "Asset Management"                         => 701
-    "Banks - Diversified"                      => 702
-    "Banks - Regional"                         => 703
-    "Capital Markets"                          => 704
-    "Credit Services"                          => 705
-    "Financial Data & Stock Exchanges"         => 706
-    "Insurance - Diversified"                  => 707
-    "Insurance - Life"                         => 708
-    "Insurance - Property & Casualty"          => 709
-    "Insurance - Reinsurance"                  => 710
-    "Insurance - Specialty"                    => 711
-    "Mortgage Finance"                         => 712
-    "Shell Companies"                          => 713
-    // Technology (8xx)
-    "Communication Equipment"                  => 801
-    "Computer Hardware"                        => 802
-    "Consumer Electronics"                     => 803
-    "Electronic Components"                    => 804
-    "Electronics & Computer Distribution"      => 805
-    "Information Technology Services"          => 806
-    "Scientific & Technical Instruments"       => 807
-    "Semiconductors"                           => 808
-    "Software - Application"                   => 809
-    "Software - Infrastructure"                => 810
-    "Solar"                                    => 811
-    // Communication Services (9xx)
-    "Advertising Agencies"                     => 901
-    "Broadcasting"                             => 902
-    "Electronic Gaming & Multimedia"           => 903
-    "Entertainment"                            => 904
-    "Internet Content & Information"           => 905
-    "Publishing"                               => 906
-    "Telecom Services"                         => 907
-    // Utilities (10xx)
-    "Utilities - Diversified"                  => 1001
-    "Utilities - Independent Power Producers"  => 1002
-    "Utilities - Regulated Electric"           => 1003
-    "Utilities - Regulated Gas"                => 1004
-    "Utilities - Regulated Water"              => 1005
-    "Utilities - Renewable"                    => 1006
-    // Real Estate (11xx)
-    "Real Estate - Development"                => 1101
-    "Real Estate - Diversified"                => 1102
-    "Real Estate Services"                     => 1103
-    "REIT - Diversified"                       => 1104
-    "REIT - Healthcare Facilities"             => 1105
-    "REIT - Hotel & Motel"                     => 1106
-    "REIT - Industrial"                        => 1107
-    "REIT - Mortgage"                          => 1108
-    "REIT - Office"                            => 1109
-    "REIT - Residential"                       => 1110
-    "REIT - Retail"                            => 1111
-    "REIT - Specialty"                         => 1112
+    // Non-Energy Minerals (1xx)
+    "Steel"                               => 101
+    "Aluminum"                            => 102
+    "Precious Metals"                     => 103
+    "Other Metals/Minerals"               => 104
+    "Forest Products"                     => 105
+    "Construction Materials"              => 106
+    // Producer Manufacturing (2xx)
+    "Metal Fabrication"                   => 201
+    "Industrial Machinery"                => 202
+    "Trucks/Construction/Farm Machinery"  => 203
+    "Auto Parts: OEM"                     => 204
+    "Building Products"                   => 205
+    "Electrical Products"                 => 206
+    "Office Equipment/Supplies"           => 207
+    "Miscellaneous Manufacturing"         => 208
+    "Industrial Conglomerates"            => 209
+    // Electronic Technology (3xx)
+    "Semiconductors"                      => 301
+    "Electronic Components"               => 302
+    "Electronic Equipment/Instruments"    => 303
+    "Telecommunications Equipment"        => 304
+    "Aerospace & Defense"                 => 305
+    "Computer Processing Hardware"        => 306
+    "Computer Peripherals"                => 307
+    "Computer Communications"             => 308
+    "Electronic Production Equipment"     => 309
+    // Consumer Durables (4xx)
+    "Motor Vehicles"                      => 401
+    "Automotive Aftermarket"              => 402
+    "Homebuilding"                        => 403
+    "Home Furnishings"                    => 404
+    "Electronics/Appliances"              => 405
+    "Tools & Hardware"                    => 406
+    "Recreational Products"               => 407
+    "Other Consumer Specialties"          => 408
+    // Energy Minerals (5xx)
+    "Oil and Gas Production"              => 501
+    "Integrated Oil"                      => 502
+    "Oil Refining/Marketing"              => 503
+    "Coal"                                => 504
+    // Process Industries (6xx)
+    "Chemicals: Major Diversified"        => 601
+    "Chemicals: Specialty"                => 602
+    "Chemicals: Agricultural"             => 603
+    "Textiles"                            => 604
+    "Agricultural Commodities/Milling"    => 605
+    "Pulp and Paper"                      => 606
+    "Containers/Packaging"                => 607
+    "Industrial Specialities"             => 608
+    // Health Technology (7xx)
+    "Pharmaceuticals: Major"              => 701
+    "Pharmaceuticals: Other"              => 702
+    "Pharmaceuticals: Generic"            => 703
+    "Biotechnology"                       => 704
+    "Medical Specialties"                 => 705
+    // Consumer Non-Durables (8xx)
+    "Food: Major Diversified"             => 801
+    "Food: Specialty/Candy"               => 802
+    "Food: Meat/Fish/Dairy"               => 803
+    "Beverages: Non-Alcoholic"            => 804
+    "Beverages: Alcoholic"                => 805
+    "Tobacco"                             => 806
+    "Household/Personal Care"             => 807
+    "Apparel/Footwear"                    => 808
+    "Consumer Sundries"                   => 809
+    // Industrial Services (9xx)
+    "Contract Drilling"                   => 901
+    "Oilfield Services/Equipment"         => 902
+    "Engineering and Construction"        => 903
+    "Environmental Services"              => 904
+    "Oil and Gas Pipelines"               => 905
+    // Commercial Services (10xx)
+    "Miscellaneous Commercial Services"   => 1001
+    "Advertising /Marketing Services"     => 1002
+    "Commercial Printing/Forms"           => 1003
+    "Financial Publishing/Services"       => 1004
+    "Personnel Services"                  => 1005
+    // Distribution Services (11xx)
+    "Wholesale Distributors"              => 1101
+    "Food Distributors"                   => 1102
+    "Electronics Distributors"            => 1103
+    "Medical Distributors"                => 1104
+    // Technology Services (12xx)
+    "Data Processing Services"            => 1201
+    "Information Technology Services"     => 1202
+    "Packaged Software"                   => 1203
+    "Internet Software/Services"          => 1204
+    // Health Services (13xx)
+    "Managed Health Care"                 => 1301
+    "Hospital/Nursing Management"         => 1302
+    "Medical/Nursing Services"            => 1303
+    "Services to the Health Industry"     => 1304
+    // Consumer Services (14xx)
+    "Media Conglomerates"                 => 1401
+    "Broadcasting"                        => 1402
+    "Cable/Satellite TV"                  => 1403
+    "Publishing: Newspapers"              => 1404
+    "Publishing: Books/Magazines"         => 1405
+    "Movies/Entertainment"                => 1406
+    "Restaurants"                         => 1407
+    "Hotels/Resorts/Cruiselines"          => 1408
+    "Casinos/Gaming"                      => 1409
+    "Other Consumer Services"             => 1410
+    // Retail Trade (15xx)
+    "Food Retail"                         => 1501
+    "Drugstore Chains"                    => 1502
+    "Department Stores"                   => 1503
+    "Discount Stores"                     => 1504
+    "Apparel/Footwear Retail"             => 1505
+    "Home Improvement Chains"             => 1506
+    "Electronics/Appliance Stores"        => 1507
+    "Specialty Stores"                    => 1508
+    "Catalogs/Specialty Distribution"     => 1509
+    "Internet Retail"                     => 1510
+    // Transportation (16xx)
+    "Air Freight/Couriers"                => 1601
+    "Airlines"                            => 1602
+    "Trucking"                            => 1603
+    "Railroads"                           => 1604
+    "Marine Shipping"                     => 1605
+    "Other Transportation"                => 1606
+    // Utilities (17xx)
+    "Electric Utilities"                  => 1701
+    "Gas Distributors"                    => 1702
+    "Water Utilities"                     => 1703
+    "Alternative Power Generation"        => 1704
+    // Finance (18xx)
+    "Major Banks"                         => 1801
+    "Regional Banks"                      => 1802
+    "Savings Banks"                       => 1803
+    "Finance/Rental/Leasing"              => 1804
+    "Investment Banks/Brokers"            => 1805
+    "Investment Managers"                 => 1806
+    "Financial Conglomerates"             => 1807
+    "Property/Casualty Insurance"         => 1808
+    "Multi-Line Insurance"                => 1809
+    "Life/Health Insurance"               => 1810
+    "Specialty Insurance"                 => 1811
+    "Insurance Brokers/Services"          => 1812
+    "Real Estate Development"             => 1813
+    "Real Estate Investment Trusts"       => 1814
+    // Communications (19xx)
+    "Major Telecommunications"            => 1901
+    "Specialty Telecommunications"        => 1902
+    "Wireless Telecommunications"         => 1903
+    // Miscellaneous (20xx)
+    "Miscellaneous"                       => 2001
+    "Investment Trusts/Mutual Funds"      => 2002
     => 0
 
 plot(industryCode, title="Industry", color=color.new(#1447df, 0), editable=true)
