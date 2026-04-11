@@ -154,11 +154,11 @@ plot(array.get(a_lastLows, 1),  "WL",   color.new(i_weeklyColor, 100),  editable
 plot(array.get(a_lastHighs, 2), "MH",   color.new(i_monthlyColor, 100), editable=true)
 plot(array.get(a_lastLows, 2),  "ML",   color.new(i_monthlyColor, 100), editable=true)
 
-plot(is_price_above_MH, title = "Above MH", color = is_price_above_MH == 1 ? color.blue  : color.white)
-plot(is_price_below_ML, title = "Below ML", color = is_price_below_ML == 1 ? color.red   : color.white)
+plot(is_price_above_MH, title = "Above MH", color = color.blue)
+plot(is_price_below_ML, title = "Below ML", color = color.red)
 
-plot(is_price_above_WH, title = "Above WH", color = is_price_above_WH == 1 ? color.blue  : color.white)
-plot(is_price_below_WL, title = "Below WL", color = is_price_below_WL == 1 ? color.red   : color.white)
+plot(is_price_above_WH, title = "Above WH", color = color.blue)
+plot(is_price_below_WL, title = "Below WL", color = color.red)
 
 //--------------------------------------------------------------------
 //                          Moving VWAP Logic
@@ -239,8 +239,8 @@ is_above_vwap2 = close > vwapValue2 ? 1 : 0
 plot(vwapValue1,     title="VWAP 1",           color=color.new(#00897b, 0), editable=true)
 plot(vwapValue2,     title="VWAP 2",           color=color.new(#9b27b0, 0), editable=true)
 plot(vwapTrend,      title="VWAP Trend",       color=color.new(color.teal,   0), editable=true)
-plot(isCrossover  ? 1 : 0, title="VWAP Crossover",  color=isCrossover  ? color.green : color.white, editable=true)
-plot(isCrossunder ? 1 : 0, title="VWAP Crossunder", color=isCrossunder ? color.red   : color.white, editable=true)
+plot(isCrossover  ? 1 : 0, title="VWAP Crossover",  color=color.new(color.green, 0), editable=true)
+plot(isCrossunder ? 1 : 0, title="VWAP Crossunder", color=color.new(color.red,   0), editable=true)
 plot(is_above_vwap1, title="Above VWAP 1",    color=color.new(color.teal,   0), editable=true)
 plot(is_above_vwap2, title="Above VWAP 2",    color=color.new(color.purple, 0), editable=true)
 
@@ -269,7 +269,7 @@ hiloPct    = (hiloHigh - hiloLow) != 0 ? (close - hiloLow) / (hiloHigh - hiloLow
 
 plot(hiloHigh, title="Period High",      color=color.new(color.blue,  0), editable=true)
 plot(hiloLow,  title="Period Low",       color=color.new(color.blue,  0), editable=true)
-plot(hiloPct,  title="% in HiLo Range", color=hiloPct > 80 ? color.blue : hiloPct < 20 ? color.red : color.silver, editable=true)
+plot(hiloPct,  title="% in HiLo Range", color=color.new(color.blue, 0), editable=true)
 
 // NOTE: syminfo.sector and syminfo.industry return empty strings in
 // TradingView's screener execution context and cannot be used as
