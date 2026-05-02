@@ -1,0 +1,147 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © ZenAndTheArtOfTrading / PineScriptMastery.com
+// Last Updated: 9th June, 2023
+//@version=6
+indicator('Day Trading Range v2', overlay = true, max_lines_count = 500, max_labels_count = 500)
+
+// Get input
+res                  = input.timeframe(title = 'Timeframe', defval = 'D')
+atrLen               = input.int(title = 'ATR Length', defval = 5)
+atrMult              = input.float(title = 'ATR Multiplier', defval = 0.5)
+LabelOffset          = input.int(20, title = 'LabelOffset')
+showHistorical       = input.bool(true,  title = 'Show Historical Levels',        group = 'Historical Levels')
+showHistoricalLabels = input.bool(false, title = 'Show Historical Level Labels',  group = 'Historical Levels')
+
+// Create non-repainting security function
+rp_security(_symbol, _res, _src) =>
+    request.security(_symbol, _res, _src[barstate.isrealtime ? 1 : 0])[barstate.isrealtime ? 0 : 1]
+
+// Get HTF price data
+htfHigh  = rp_security(syminfo.tickerid, res, high)
+htfLow   = rp_security(syminfo.tickerid, res, low)
+htfOpen  = rp_security(syminfo.tickerid, res, open)
+htfClose = rp_security(syminfo.tickerid, res, close)
+htfATR   = rp_security(syminfo.tickerid, res, ta.atr(atrLen)) * atrMult
+htfMid   = rp_security(syminfo.tickerid, res, low + (high - low) / 2)
+htfFib1  = rp_security(syminfo.tickerid, res, low + (high - low) * 0.382)
+htfFib2  = rp_security(syminfo.tickerid, res, low + (high - low) * 0.618)
+
+// Current session line variables (extend right until the next session)
+var line yesterdayHiLine    = na
+var line yesterdayLoLine    = na
+var line yesterdayCloseLine = na
+var line yesterdayOpenLine  = na
+var line yesterdayMidLine   = na
+var line yesterdayFibLine1  = na
+var line yesterdayFibLine2  = na
+
+// Bar index at which the current set of level lines was created
+var int sessionStartBar = na
+
+// ─── Session change ───────────────────────────────────────────────────────────
+if bool(ta.change(time(res)))
+
+    if showHistorical
+        // Convert the previous session's extending lines to fixed historical lines
+        if not na(yesterdayHiLine)
+            int endBar = bar_index - 1
+
+            line.set_x2(yesterdayHiLine, endBar)
+            line.set_extend(yesterdayHiLine, extend.none)
+            line.set_width(yesterdayHiLine, 1)
+            line.set_color(yesterdayHiLine, color.rgb(118, 238, 178, 50))
+
+            line.set_x2(yesterdayLoLine, endBar)
+            line.set_extend(yesterdayLoLine, extend.none)
+            line.set_width(yesterdayLoLine, 1)
+            line.set_color(yesterdayLoLine, color.rgb(255, 151, 160, 50))
+
+            line.set_x2(yesterdayCloseLine, endBar)
+            line.set_extend(yesterdayCloseLine, extend.none)
+            line.set_color(yesterdayCloseLine, color.rgb(12, 12, 12, 50))
+
+            line.set_x2(yesterdayOpenLine, endBar)
+            line.set_extend(yesterdayOpenLine, extend.none)
+            line.set_color(yesterdayOpenLine, color.rgb(129, 125, 125, 50))
+
+            line.set_x2(yesterdayMidLine, endBar)
+            line.set_extend(yesterdayMidLine, extend.none)
+            line.set_width(yesterdayMidLine, 1)
+            line.set_color(yesterdayMidLine, color.rgb(226, 226, 226, 60))
+
+            line.set_x2(yesterdayFibLine1, endBar)
+            line.set_extend(yesterdayFibLine1, extend.none)
+            line.set_width(yesterdayFibLine1, 1)
+            line.set_color(yesterdayFibLine1, color.rgb(226, 226, 226, 60))
+
+            line.set_x2(yesterdayFibLine2, endBar)
+            line.set_extend(yesterdayFibLine2, extend.none)
+            line.set_width(yesterdayFibLine2, 1)
+            line.set_color(yesterdayFibLine2, color.rgb(226, 226, 226, 60))
+
+            // Optional small price labels at the start of each historical session
+            if showHistoricalLabels and not na(sessionStartBar)
+                hiVal = line.get_y1(yesterdayHiLine)
+                loVal = line.get_y1(yesterdayLoLine)
+                label.new(sessionStartBar, hiVal, text = str.tostring(hiVal, '#.00'),
+                     style = label.style_label_right,
+                     color = color.rgb(118, 238, 178, 50),
+                     textcolor = color.rgb(0, 0, 0),
+                     size = size.tiny)
+                label.new(sessionStartBar, loVal, text = str.tostring(loVal, '#.00'),
+                     style = label.style_label_right,
+                     color = color.rgb(255, 151, 160, 50),
+                     textcolor = color.rgb(0, 0, 0),
+                     size = size.tiny)
+
+    else
+        // Historical display is off — delete the previous session's lines
+        line.delete(yesterdayHiLine)
+        line.delete(yesterdayLoLine)
+        line.delete(yesterdayCloseLine)
+        line.delete(yesterdayOpenLine)
+        line.delete(yesterdayMidLine)
+        line.delete(yesterdayFibLine1)
+        line.delete(yesterdayFibLine2)
+
+    // Draw new extending lines for the freshly started session
+    yesterdayHiLine    := line.new(bar_index, htfHigh,  bar_index + 1, htfHigh,  xloc.bar_index, extend.right, color.rgb(118, 238, 178),      line.style_solid,  2)
+    yesterdayLoLine    := line.new(bar_index, htfLow,   bar_index + 1, htfLow,   xloc.bar_index, extend.right, color.rgb(255, 151, 160),      line.style_solid,  2)
+    yesterdayCloseLine := line.new(bar_index, htfClose, bar_index + 1, htfClose, xloc = xloc.bar_index, extend = extend.right, color = color.rgb(12, 12, 12),   style = line.style_solid)
+    yesterdayOpenLine  := line.new(bar_index, htfOpen,  bar_index + 1, htfOpen,  xloc = xloc.bar_index, extend = extend.right, color = color.rgb(129, 125, 125), style = line.style_dashed)
+    yesterdayMidLine   := line.new(bar_index, htfMid,   bar_index + 1, htfMid,   xloc.bar_index, extend.right, color.rgb(226, 226, 226, 40),  line.style_solid,  2)
+    yesterdayFibLine1  := line.new(bar_index, htfFib1,  bar_index + 1, htfFib1,  xloc.bar_index, extend.right, color.rgb(226, 226, 226, 20),  line.style_solid,  2)
+    yesterdayFibLine2  := line.new(bar_index, htfFib2,  bar_index + 1, htfFib2,  xloc.bar_index, extend.right, color.rgb(226, 226, 226, 20),  line.style_solid,  2)
+
+    sessionStartBar := bar_index
+
+// ─── Current-session rolling labels (always pinned to the right edge) ─────────
+LabelH1 = label.new(bar_index + LabelOffset, htfHigh, style = label.style_label_center)
+label.set_text(LabelH1, text = 'H - ' + str.tostring(htfHigh, '#.00'))
+label.set_textcolor(LabelH1, color.rgb(0, 0, 0))
+label.set_color(LabelH1, color.rgb(118, 238, 178))
+label.delete(LabelH1[1])
+
+LabelL1 = label.new(bar_index + LabelOffset, htfLow, style = label.style_label_center)
+label.set_text(LabelL1, text = 'L - ' + str.tostring(htfLow, '#.00'))
+label.set_textcolor(LabelL1, color.rgb(0, 0, 0))
+label.set_color(LabelL1, color.rgb(255, 151, 160))
+label.delete(LabelL1[1])
+
+LabelO1 = label.new(bar_index + LabelOffset, htfOpen, style = label.style_label_center)
+label.set_text(LabelO1, text = 'O - ' + str.tostring(htfOpen, '#.00'))
+label.set_textcolor(LabelO1, color.rgb(0, 0, 0))
+label.set_color(LabelO1, color.rgb(221, 218, 220))
+label.delete(LabelO1[1])
+
+LabelC1 = label.new(bar_index + LabelOffset, htfClose, style = label.style_label_center)
+label.set_text(LabelC1, text = 'C - ' + str.tostring(htfClose, '#.00'))
+label.set_textcolor(LabelC1, color.rgb(255, 255, 255))
+label.set_color(LabelC1, color.rgb(0, 0, 0))
+label.delete(LabelC1[1])
+
+LabelM1 = label.new(bar_index + LabelOffset, htfMid, style = label.style_label_center)
+label.set_text(LabelM1, text = 'M - ' + str.tostring(htfMid, '#.00'))
+label.set_textcolor(LabelM1, color.rgb(0, 0, 0))
+label.set_color(LabelM1, color.rgb(219, 223, 221))
+label.delete(LabelM1[1])
