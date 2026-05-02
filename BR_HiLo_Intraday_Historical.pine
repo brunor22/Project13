@@ -102,26 +102,11 @@ RangeText3 = str.format("{0,number,#.##}", Rangepercent3)
 levelsClose(a, b) =>
     math.abs(a - b) <= math.max(a, b) * ConvergenceTolerance
 
-// High convergence pairs
-highConv12 = levelsClose(highest1, highest2)
-highConv13 = levelsClose(highest1, highest3)
-highConv23 = levelsClose(highest2, highest3)
-
-// Low convergence pairs
-lowConv12 = levelsClose(lowest1, lowest2)
-lowConv13 = levelsClose(lowest1, lowest3)
-lowConv23 = levelsClose(lowest2, lowest3)
-
-// All-three convergence (at least two pairs align → all three are close)
-highConvAll3 = highConv12 and highConv13
-lowConvAll3  = lowConv12  and lowConv13
-
-// Any pairwise-only convergence (exclude all-three bars from pairwise series)
-highConvAny2 = (highConv12 or highConv13 or highConv23) and not highConvAll3
-lowConvAny2  = (lowConv12  or lowConv13  or lowConv23)  and not lowConvAll3
+// All-three convergence: every pair must be within tolerance
+highConvAll3 = levelsClose(highest1, highest2) and levelsClose(highest1, highest3)
+lowConvAll3  = levelsClose(lowest1,  lowest2)  and levelsClose(lowest1,  lowest3)
 
 // ─── Plot convergence markers ─────────────────────────────────────────────────
-// All-3 convergence: large solid triangle, full opacity
 plotshape(highConvAll3, title="All 3 Highs Converge",
      style=shape.triangleup, location=location.abovebar,
      color=color.new(color.blue, 0), size=size.normal)
@@ -129,15 +114,6 @@ plotshape(highConvAll3, title="All 3 Highs Converge",
 plotshape(lowConvAll3, title="All 3 Lows Converge",
      style=shape.triangledown, location=location.belowbar,
      color=color.new(color.red, 0), size=size.normal)
-
-// Pairwise convergence: small circle, semi-transparent
-plotshape(highConvAny2, title="2 Highs Converge",
-     style=shape.circle, location=location.abovebar,
-     color=color.new(color.blue, 50), size=size.tiny)
-
-plotshape(lowConvAny2, title="2 Lows Converge",
-     style=shape.circle, location=location.belowbar,
-     color=color.new(color.red, 50), size=size.tiny)
 
 
 //Table
