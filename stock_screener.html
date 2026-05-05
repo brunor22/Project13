@@ -94,22 +94,16 @@
   .eps-beat-n { color: var(--red); }
 
   /* ── Detail panel ── */
-  .detail-panel { display: none; position: fixed; right: 0; top: 0; width: 500px; height: 100vh; background: var(--surface); border-left: 1px solid var(--border); overflow: hidden; z-index: 100; box-shadow: -4px 0 24px rgba(0,0,0,0.5); flex-direction: column; }
+  .detail-panel { display: none; position: fixed; right: 0; top: 0; width: 420px; height: 100vh; background: var(--surface); border-left: 1px solid var(--border); overflow: hidden; z-index: 100; box-shadow: -4px 0 24px rgba(0,0,0,0.5); flex-direction: column; }
   .detail-panel.open { display: flex; }
   .detail-header { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
   .detail-close { float: right; cursor: pointer; color: var(--muted); font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 4px; }
   .detail-close:hover { background: var(--surface2); color: var(--text); }
   .detail-ticker { font-size: 22px; font-weight: 800; color: var(--blue); margin-top: 4px; }
   .detail-company { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
-  /* ── TradingView chart ── */
-  .tv-chart-wrap { flex-shrink: 0; height: 300px; border-bottom: 1px solid var(--border); background: #131722; }
-  .tv-chart-wrap .tradingview-widget-container { height: 100%; width: 100%; }
-  .tv-chart-wrap .tradingview-widget-container__widget { height: calc(100% - 32px); width: 100%; }
-  .tv-chart-wrap .tradingview-widget-copyright { font-size: 11px; padding: 4px 8px; }
-  /* profile widget */
-  .detail-section .tradingview-widget-container { width: 100%; }
-  .detail-section .tradingview-widget-container__widget { min-height: 400px; }
-  .detail-section .tradingview-widget-copyright { font-size: 11px; color: var(--muted); padding: 4px 0; }
+  .tv-btn-row { display: flex; gap: 8px; margin-top: 10px; }
+  .tv-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; text-decoration: none; }
+  .tv-btn:hover { border-color: var(--accent); color: var(--accent); }
   /* ── Scrollable detail body ── */
   .detail-body { flex: 1; overflow-y: auto; padding: 16px; }
   .detail-section { margin-bottom: 16px; }
@@ -202,7 +196,6 @@
     <span class="detail-close" onclick="closeDetail()">&#x2715;</span>
     <div id="detail-header-content"></div>
   </div>
-  <div class="tv-chart-wrap" id="tv-chart-wrap"></div>
   <div class="detail-body" id="detail-content"></div>
 </div>
 
@@ -3056,83 +3049,20 @@ function showDetail(ticker) {
   function x1(v)  { return v != null ? v.toFixed(1) : "—"; }
   function x2(v)  { return v != null ? v.toFixed(2) : "—"; }
 
-  // Header
+  // Header with popup buttons
   document.getElementById("detail-header-content").innerHTML = `
     <div class="detail-ticker">${s.ticker}</div>
     <div class="detail-company">${s.company}</div>
-    <div>${fmtVerdict(s.verdict)} &nbsp; ${fmtComposite(s.composite)}</div>
+    <div style="margin:6px 0">${fmtVerdict(s.verdict)} &nbsp; ${fmtComposite(s.composite)}</div>
+    <div class="tv-btn-row">
+      <button class="tv-btn" onclick="openChartWindow('${s.ticker}')">&#9661; Chart</button>
+      <button class="tv-btn" onclick="openProfileWindow('${s.ticker}')">&#9432; Profile</button>
+    </div>
   `;
 
-  // TradingView chart — recreate the container so the widget re-initialises
-  const chartWrap = document.getElementById("tv-chart-wrap");
-  chartWrap.innerHTML = "";
-  const tvContainer = document.createElement("div");
-  tvContainer.className = "tradingview-widget-container";
-  const tvWidget = document.createElement("div");
-  tvWidget.className = "tradingview-widget-container__widget";
-  const tvCopyright = document.createElement("div");
-  tvCopyright.className = "tradingview-widget-copyright";
-  tvCopyright.innerHTML = `<a href="https://www.tradingview.com/symbols/${encodeURIComponent(s.ticker)}/" rel="noopener nofollow" target="_blank"><span class="blue-text">${s.ticker} chart</span></a><span> by TradingView</span>`;
-  const tvScript = document.createElement("script");
-  tvScript.type = "text/javascript";
-  tvScript.src = "https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js";
-  tvScript.async = true;
-  tvScript.textContent = JSON.stringify({
-    symbol: s.ticker,
-    interval: "D",
-    timezone: "Etc/UTC",
-    theme: "dark",
-    style: "1",
-    locale: "en",
-    backgroundColor: "#131722",
-    gridColor: "rgba(99,102,241,0.08)",
-    hide_top_toolbar: false,
-    hide_side_toolbar: true,
-    hide_legend: false,
-    hide_volume: false,
-    allow_symbol_change: false,
-    save_image: true,
-    calendar: false,
-    withdateranges: false,
-    autosize: true
-  });
-  tvContainer.appendChild(tvWidget);
-  tvContainer.appendChild(tvCopyright);
-  tvContainer.appendChild(tvScript);
-  chartWrap.appendChild(tvContainer);
-
-  // Company profile widget — injected via DOM so script executes
+  // Fundamentals
   const detailBody = document.getElementById("detail-content");
   detailBody.innerHTML = "";
-
-  const profileWrap = document.createElement("div");
-  profileWrap.className = "detail-section";
-  profileWrap.innerHTML = `<h3>Company Profile</h3>`;
-  const profileContainer = document.createElement("div");
-  profileContainer.className = "tradingview-widget-container";
-  const profileWidget = document.createElement("div");
-  profileWidget.className = "tradingview-widget-container__widget";
-  const profileCopyright = document.createElement("div");
-  profileCopyright.className = "tradingview-widget-copyright";
-  profileCopyright.innerHTML = `<a href="https://www.tradingview.com/symbols/${encodeURIComponent(s.ticker)}/" rel="noopener nofollow" target="_blank"><span class="blue-text">${s.ticker} key facts</span></a><span> by TradingView</span>`;
-  const profileScript = document.createElement("script");
-  profileScript.type = "text/javascript";
-  profileScript.src = "https://s3.tradingview.com/external-embedding/embed-widget-symbol-profile.js";
-  profileScript.async = true;
-  profileScript.textContent = JSON.stringify({
-    symbol: s.ticker,
-    colorTheme: "dark",
-    isTransparent: true,
-    locale: "en",
-    autosize: true
-  });
-  profileContainer.appendChild(profileWidget);
-  profileContainer.appendChild(profileCopyright);
-  profileContainer.appendChild(profileScript);
-  profileWrap.appendChild(profileContainer);
-  detailBody.appendChild(profileWrap);
-
-  // Remaining fundamentals via innerHTML
   const fundsDiv = document.createElement("div");
   fundsDiv.innerHTML = `
     <div class="detail-section">
@@ -3191,6 +3121,44 @@ function showDetail(ticker) {
   `;
   detailBody.appendChild(fundsDiv);
   document.getElementById("detail-panel").classList.add("open");
+}
+
+function openChartWindow(ticker) {
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>${ticker} Chart</title>
+<style>*{margin:0;padding:0;box-sizing:border-box} body{background:#131722;height:100vh;overflow:hidden}</style>
+</head><body>
+<div class="tradingview-widget-container" style="height:100%;width:100%">
+  <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+  <div class="tradingview-widget-copyright" style="font-size:11px;padding:4px 8px;color:#666">
+    <a href="https://www.tradingview.com/symbols/${encodeURIComponent(ticker)}/" rel="noopener nofollow" target="_blank" style="color:#6366f1">${ticker} chart</a> by TradingView
+  </div>
+  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
+  ${JSON.stringify({symbol:ticker,interval:"D",timezone:"Etc/UTC",theme:"dark",style:"1",locale:"en",backgroundColor:"#131722",gridColor:"rgba(99,102,241,0.08)",hide_top_toolbar:false,hide_side_toolbar:false,hide_legend:false,hide_volume:false,allow_symbol_change:true,save_image:true,calendar:false,withdateranges:true,autosize:true})}
+  <\/script>
+</div>
+</body></html>`;
+  const blob = new Blob([html], {type:"text/html"});
+  window.open(URL.createObjectURL(blob), `tv_chart_${ticker}`, "width=1100,height=650,resizable=yes");
+}
+
+function openProfileWindow(ticker) {
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>${ticker} Profile</title>
+<style>*{margin:0;padding:0;box-sizing:border-box} body{background:#1a1d27;height:100vh;overflow:hidden}</style>
+</head><body>
+<div class="tradingview-widget-container" style="height:100%;width:100%">
+  <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
+  <div class="tradingview-widget-copyright" style="font-size:11px;padding:4px 8px;color:#666">
+    <a href="https://www.tradingview.com/symbols/${encodeURIComponent(ticker)}/" rel="noopener nofollow" target="_blank" style="color:#6366f1">${ticker} key facts</a> by TradingView
+  </div>
+  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-profile.js" async>
+  ${JSON.stringify({symbol:ticker,colorTheme:"dark",isTransparent:false,locale:"en",autosize:true})}
+  <\/script>
+</div>
+</body></html>`;
+  const blob = new Blob([html], {type:"text/html"});
+  window.open(URL.createObjectURL(blob), `tv_profile_${ticker}`, "width=460,height=600,resizable=yes");
 }
 
 function closeDetail() {
