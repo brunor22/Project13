@@ -129,18 +129,18 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 <title>Stock Screener</title>
 <style>
   :root {
-    --bg:       #0f1117;
-    --surface:  #1a1d27;
-    --surface2: #222636;
-    --border:   #2e3350;
-    --text:     #e2e8f0;
-    --muted:    #8892aa;
+    --bg:       #f8f9fb;
+    --surface:  #ffffff;
+    --surface2: #f1f3f7;
+    --border:   #dde1eb;
+    --text:     #1a1d27;
+    --muted:    #6b7280;
     --accent:   #6366f1;
-    --green:    #22c55e;
-    --yellow:   #eab308;
-    --red:      #ef4444;
-    --orange:   #f97316;
-    --blue:     #38bdf8;
+    --green:    #16a34a;
+    --yellow:   #ca8a04;
+    --red:      #dc2626;
+    --orange:   #ea580c;
+    --blue:     #0284c7;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; }
@@ -648,7 +648,7 @@ function showDetail(ticker) {
 function openChartWindow(ticker) {
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>${ticker} Chart</title>
-<style>*{margin:0;padding:0;box-sizing:border-box} body{background:#131722;height:100vh;overflow:hidden}</style>
+<style>*{margin:0;padding:0;box-sizing:border-box} body{background:#ffffff;height:100vh;overflow:hidden}</style>
 </head><body>
 <div class="tradingview-widget-container" style="height:100%;width:100%">
   <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
@@ -656,7 +656,7 @@ function openChartWindow(ticker) {
     <a href="https://www.tradingview.com/symbols/${encodeURIComponent(ticker)}/" rel="noopener nofollow" target="_blank" style="color:#6366f1">${ticker} chart</a> by TradingView
   </div>
   <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js" async>
-  ${JSON.stringify({symbol:ticker,interval:"D",timezone:"Etc/UTC",theme:"dark",style:"1",locale:"en",backgroundColor:"#131722",gridColor:"rgba(99,102,241,0.08)",hide_top_toolbar:false,hide_side_toolbar:false,hide_legend:false,hide_volume:false,allow_symbol_change:true,save_image:true,calendar:false,withdateranges:true,autosize:true})}
+  ${JSON.stringify({symbol:ticker,interval:"D",timezone:"Etc/UTC",theme:"light",style:"1",locale:"en",backgroundColor:"#ffffff",gridColor:"rgba(46,46,46,0.06)",hide_top_toolbar:false,hide_side_toolbar:false,hide_legend:false,hide_volume:false,allow_symbol_change:true,save_image:true,calendar:false,withdateranges:true,autosize:true})}
   <\/script>
 </div>
 </body></html>`;
@@ -667,7 +667,7 @@ function openChartWindow(ticker) {
 function openProfileWindow(ticker) {
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>${ticker} Profile</title>
-<style>*{margin:0;padding:0;box-sizing:border-box} body{background:#1a1d27;height:100vh;overflow:hidden}</style>
+<style>*{margin:0;padding:0;box-sizing:border-box} body{background:#ffffff;height:100vh;overflow:hidden}</style>
 </head><body>
 <div class="tradingview-widget-container" style="height:100%;width:100%">
   <div class="tradingview-widget-container__widget" style="height:calc(100% - 32px);width:100%"></div>
@@ -675,7 +675,7 @@ function openProfileWindow(ticker) {
     <a href="https://www.tradingview.com/symbols/${encodeURIComponent(ticker)}/" rel="noopener nofollow" target="_blank" style="color:#6366f1">${ticker} key facts</a> by TradingView
   </div>
   <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-profile.js" async>
-  ${JSON.stringify({symbol:ticker,colorTheme:"dark",isTransparent:false,locale:"en",autosize:true})}
+  ${JSON.stringify({symbol:ticker,colorTheme:"light",isTransparent:false,locale:"en",autosize:true})}
   <\/script>
 </div>
 </body></html>`;
