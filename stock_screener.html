@@ -1,0 +1,3132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stock Screener</title>
+<style>
+  :root {
+    --bg:       #0f1117;
+    --surface:  #1a1d27;
+    --surface2: #222636;
+    --border:   #2e3350;
+    --text:     #e2e8f0;
+    --muted:    #8892aa;
+    --accent:   #6366f1;
+    --green:    #22c55e;
+    --yellow:   #eab308;
+    --red:      #ef4444;
+    --orange:   #f97316;
+    --blue:     #38bdf8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 13px; }
+
+  /* ── Header ── */
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  header h1 { font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: 0.5px; }
+  header .subtitle { color: var(--muted); font-size: 12px; }
+
+  /* ── Layout ── */
+  .layout { display: flex; height: calc(100vh - 55px); overflow: hidden; }
+  .sidebar { width: 240px; min-width: 200px; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; padding: 16px 14px; flex-shrink: 0; }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── Sidebar ── */
+  .sidebar h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 10px; }
+  .weight-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .weight-row:last-child { border-bottom: none; }
+  .weight-label { color: var(--text); font-size: 12px; }
+  .weight-val { font-size: 12px; font-weight: 600; color: var(--accent); }
+  .weight-bar { width: 100%; height: 4px; background: var(--border); border-radius: 2px; margin-top: 3px; }
+  .weight-bar-fill { height: 4px; background: var(--accent); border-radius: 2px; }
+
+  .scale-section { margin-top: 18px; }
+  .scale-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 11px; }
+  .scale-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  .threshold-section { margin-top: 18px; }
+  .threshold-row { padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 11px; display: flex; gap: 6px; align-items: center; }
+  .threshold-row:last-child { border-bottom: none; }
+
+  /* ── Controls bar ── */
+  .controls { padding: 10px 14px; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .search-box { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; color: var(--text); font-size: 12px; width: 200px; outline: none; }
+  .search-box:focus { border-color: var(--accent); }
+  .filter-btn { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 12px; color: var(--muted); font-size: 12px; cursor: pointer; transition: all 0.15s; }
+  .filter-btn:hover { border-color: var(--accent); color: var(--text); }
+  .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .count-badge { margin-left: auto; font-size: 11px; color: var(--muted); }
+
+  /* ── Table ── */
+  .table-wrap { flex: 1; overflow: auto; }
+  table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+  thead { position: sticky; top: 0; z-index: 10; }
+  thead tr:first-child th { background: var(--surface); color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; padding: 8px 10px 4px; border-bottom: 1px solid var(--border); text-align: left; }
+  thead tr:last-child th { background: var(--surface2); color: var(--text); font-size: 11px; font-weight: 600; padding: 6px 10px 8px; border-bottom: 2px solid var(--border); cursor: pointer; user-select: none; text-align: left; }
+  thead tr:last-child th:hover { color: var(--accent); }
+  thead th .sort-icon { display: inline-block; margin-left: 3px; color: var(--muted); font-size: 10px; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 7px 10px; vertical-align: middle; }
+  .ticker { font-weight: 700; color: var(--blue); font-size: 13px; }
+  .company { color: var(--muted); max-width: 200px; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .na { color: var(--muted); }
+
+  /* ── Score bars ── */
+  .score-bar-wrap { display: flex; align-items: center; gap: 5px; }
+  .score-bar { width: 40px; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .score-bar-fill { height: 6px; border-radius: 3px; }
+  .score-num { font-size: 12px; font-weight: 600; min-width: 24px; text-align: right; }
+
+  /* ── Composite score ── */
+  .composite-pill { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 700; }
+
+  /* ── Verdict badge ── */
+  .verdict-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
+  .v-strong-buy { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .v-buy        { background: rgba(56,189,248,0.15); color: var(--blue); border: 1px solid rgba(56,189,248,0.3); }
+  .v-hold       { background: rgba(234,179,8,0.15);  color: var(--yellow); border: 1px solid rgba(234,179,8,0.3); }
+  .v-pass       { background: rgba(239,68,68,0.1);   color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+
+  .eps-beat-y { color: var(--green); font-weight: 600; }
+  .eps-beat-n { color: var(--red); }
+
+  /* ── Detail panel ── */
+  .detail-panel { display: none; position: fixed; right: 0; top: 0; width: 360px; height: 100vh; background: var(--surface); border-left: 1px solid var(--border); overflow-y: auto; z-index: 100; padding: 20px; box-shadow: -4px 0 24px rgba(0,0,0,0.5); }
+  .detail-panel.open { display: block; }
+  .detail-close { float: right; cursor: pointer; color: var(--muted); font-size: 18px; line-height: 1; padding: 2px 6px; border-radius: 4px; }
+  .detail-close:hover { background: var(--surface2); color: var(--text); }
+  .detail-ticker { font-size: 24px; font-weight: 800; color: var(--blue); margin-top: 8px; }
+  .detail-company { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .detail-section { margin-bottom: 16px; }
+  .detail-section h3 { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .detail-field { background: var(--surface2); border-radius: 6px; padding: 8px 10px; }
+  .detail-field .label { font-size: 10px; color: var(--muted); margin-bottom: 2px; }
+  .detail-field .value { font-size: 13px; font-weight: 600; }
+  .detail-scores { display: flex; flex-direction: column; gap: 8px; }
+  .detail-score-row { display: flex; align-items: center; gap: 8px; }
+  .detail-score-label { width: 100px; font-size: 12px; color: var(--muted); }
+  .detail-score-bar { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .detail-score-fill { height: 8px; border-radius: 4px; }
+  .detail-score-num { font-size: 12px; font-weight: 700; width: 28px; text-align: right; }
+
+  .fmt-million { font-size: 11px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>&#9679; Stock Screener</h1>
+    <div class="subtitle">Fundamental scoring · Weighted composite · Auto-ranked</div>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h2>Category Weights</h2>
+    <div id="weights-list"></div>
+
+    <div class="scale-section">
+      <h2 style="margin-top:0">Score Scale</h2>
+      <div class="scale-row"><span class="scale-dot" style="background:var(--green)"></span><span>5 — Excellent</span></div>
+      <div class="scale-row"><span class="scale-dot" style="background:#86efac"></span><span>4 — Above avg</span></div>
+      <div class="scale-row"><span class="scale-dot" style="background:var(--yellow)"></span><span>3 — Average</span></div>
+      <div class="scale-row"><span class="scale-dot" style="background:var(--orange)"></span><span>2 — Below avg</span></div>
+      <div class="scale-row"><span class="scale-dot" style="background:var(--red)"></span><span>1 — Poor</span></div>
+    </div>
+
+    <div class="threshold-section">
+      <h2 style="margin-top:0">Decision Thresholds</h2>
+      <div class="threshold-row"><span class="verdict-badge v-strong-buy">Strong Buy</span><span>&ge; 4.0</span></div>
+      <div class="threshold-row"><span class="verdict-badge v-buy">Buy</span><span>3.5 – 3.99</span></div>
+      <div class="threshold-row"><span class="verdict-badge v-hold">Hold</span><span>3.0 – 3.49</span></div>
+      <div class="threshold-row"><span class="verdict-badge v-pass">Pass</span><span>&lt; 3.0</span></div>
+    </div>
+  </div>
+
+  <!-- Main area -->
+  <div class="main">
+    <div class="controls">
+      <input class="search-box" id="search" placeholder="Search ticker or company…" />
+      <button class="filter-btn active" data-filter="All">All</button>
+      <button class="filter-btn" data-filter="Strong Buy">Strong Buy</button>
+      <button class="filter-btn" data-filter="Buy">Buy</button>
+      <button class="filter-btn" data-filter="Hold/Watch">Hold</button>
+      <button class="filter-btn" data-filter="Pass">Pass</button>
+      <span class="count-badge" id="count-badge"></span>
+    </div>
+
+    <div class="table-wrap">
+      <table id="main-table">
+        <thead>
+          <tr>
+            <th colspan="2">Identity</th>
+            <th colspan="6">Profitability</th>
+            <th colspan="4">Growth</th>
+            <th colspan="3">Valuation</th>
+            <th colspan="2">Balance Sheet</th>
+            <th colspan="2">Catalysts</th>
+            <th colspan="3">Options Setup</th>
+            <th colspan="6">Category Scores</th>
+            <th colspan="3">Output</th>
+          </tr>
+          <tr id="col-headers"></tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Detail panel -->
+<div class="detail-panel" id="detail-panel">
+  <span class="detail-close" onclick="closeDetail()">&#x2715;</span>
+  <div id="detail-content"></div>
+</div>
+
+<script>
+const WEIGHTS = {
+  "Profitability": 25.0,
+  "Growth": 25.0,
+  "Valuation": 20.0,
+  "Balance Sheet": 20.0,
+  "Catalysts": 10.0,
+  "Options Setup": 0.0,
+  "TOTAL": 100.0
+};
+const STOCKS  = [
+  {
+    "ticker": "MARA",
+    "company": "Marathon Digital Holdings, Inc.",
+    "roe": -0.4924486998,
+    "roic": -0.0410246892,
+    "op_income": -331810000.0,
+    "net_income": -1709644000.0,
+    "revenue": 202314000.0,
+    "net_margin": -8.450448313018377,
+    "op_margin": -1.6400743398875015,
+    "fcf_ni": -0.2972729995250473,
+    "rev_growth": -0.1985,
+    "eps_growth": -15.5758,
+    "fwd_eps_growth": -0.582793683253806,
+    "eps_beat": "N",
+    "fwd_pe": -0.4663843541,
+    "peg": 0.008002563643039525,
+    "ev_ebitda": -136.7112943651,
+    "net_debt_ebitda": -67.3643459732,
+    "current_ratio": 1.2728488623,
+    "earnings_date": "2026-05-07",
+    "days_to_earn": 2.0,
+    "iv_rank": 25.0,
+    "open_interest": 5000.0,
+    "bid_ask": 0.5,
+    "score_prof": 1.0,
+    "score_growth": 1.3,
+    "score_val": 5.0,
+    "score_bs": 4.0,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": 2.78,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": "LQ"
+  },
+  {
+    "ticker": "OWL",
+    "company": "Blue Owl Capital Inc.",
+    "roe": 0.0074022777,
+    "roic": 0.0085722557,
+    "op_income": 108901000.0,
+    "net_income": 15542000.0,
+    "revenue": 753811000.0,
+    "net_margin": 0.02061790024289908,
+    "op_margin": 0.14446724709509412,
+    "fcf_ni": 5.725324926006949,
+    "rev_growth": -0.0024,
+    "eps_growth": -0.6766,
+    "fwd_eps_growth": 0.1272803309446843,
+    "eps_beat": "N",
+    "fwd_pe": 99.9269722171,
+    "peg": 7.85093592037626,
+    "ev_ebitda": 73.4509013071,
+    "net_debt_ebitda": 1.7027009444,
+    "current_ratio": 0.4049829465,
+    "earnings_date": "2026-07-30",
+    "days_to_earn": 86.0,
+    "iv_rank": 35.0,
+    "open_interest": 8000.0,
+    "bid_ask": 0.4,
+    "score_prof": 2.2,
+    "score_growth": 2.0,
+    "score_val": 1.0,
+    "score_bs": 2.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 2.15,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "PINS",
+    "company": "Pinterest, Inc.",
+    "roe": 0.0583890629,
+    "roic": 0.0500574429,
+    "op_income": 301174000.0,
+    "net_income": 277070000.0,
+    "revenue": 1319347000.0,
+    "net_margin": 0.21000540418858724,
+    "op_margin": 0.22827504818671662,
+    "fcf_ni": 1.3728227523730465,
+    "rev_growth": 0.2575,
+    "eps_growth": 1.9286,
+    "fwd_eps_growth": 0.17611575693614825,
+    "eps_beat": "Y",
+    "fwd_pe": 15.5976340636,
+    "peg": 0.8856467095817558,
+    "ev_ebitda": 53.9719836449,
+    "net_debt_ebitda": -2.3026218984,
+    "current_ratio": 7.6389758375,
+    "earnings_date": "2026-05-04",
+    "days_to_earn": -1.0,
+    "iv_rank": 65.0,
+    "open_interest": 12000.0,
+    "bid_ask": 0.3,
+    "score_prof": 3.6,
+    "score_growth": 4.8,
+    "score_val": 3.3,
+    "score_bs": 5.0,
+    "score_cat": 3.0,
+    "score_opts": 2.7,
+    "composite": 4.06,
+    "verdict": "Strong Buy",
+    "sizing": "Full size \u2014 stock or ITM call",
+    "period": ""
+  },
+  {
+    "ticker": "ORCL",
+    "company": "Oracle Corporation",
+    "roe": 0.0966619041,
+    "roic": 0.0218638826,
+    "op_income": 5637000000.0,
+    "net_income": 3721000000.0,
+    "revenue": 17190000000.0,
+    "net_margin": 0.2164630599185573,
+    "op_margin": 0.32792321116928447,
+    "fcf_ni": -3.086267132491266,
+    "rev_growth": 0.0705,
+    "eps_growth": -0.4047,
+    "fwd_eps_growth": 0.06811786681061095,
+    "eps_beat": "N",
+    "fwd_pe": 27.8901504972,
+    "peg": 4.0943957588606485,
+    "ev_ebitda": 65.6865780812,
+    "net_debt_ebitda": 15.081067902,
+    "current_ratio": 1.3470309547,
+    "earnings_date": "2026-06-10",
+    "days_to_earn": 36.0,
+    "iv_rank": 30.0,
+    "open_interest": 3000.0,
+    "bid_ask": 0.6,
+    "score_prof": 2.8,
+    "score_growth": 2.3,
+    "score_val": 1.7,
+    "score_bs": 2.0,
+    "score_cat": 5.0,
+    "score_opts": 3.0,
+    "composite": 2.52,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "IONQ",
+    "company": "IonQ, Inc.",
+    "roe": 0.1851601138,
+    "roic": -0.0365606636,
+    "op_income": -242731000.0,
+    "net_income": 703519000.0,
+    "revenue": 61890000.0,
+    "net_margin": 11.367248343835838,
+    "op_margin": -3.921974470835353,
+    "fcf_ni": -0.11840334091900859,
+    "rev_growth": 0.5525,
+    "eps_growth": 1.595,
+    "fwd_eps_growth": -0.02148699720249113,
+    "eps_beat": "Y",
+    "fwd_pe": 5.5127585054,
+    "peg": -2.5656253656331605,
+    "ev_ebitda": 18.7538233356,
+    "net_debt_ebitda": -1.2933457907,
+    "current_ratio": 15.50390529,
+    "earnings_date": "2026-05-06",
+    "days_to_earn": 1.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 0.4,
+    "score_prof": 2.4,
+    "score_growth": 4.0,
+    "score_val": 4.3,
+    "score_bs": 5.0,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": 3.86,
+    "verdict": "Buy",
+    "sizing": "Half size \u2014 ITM call preferred",
+    "period": ""
+  },
+  {
+    "ticker": "CLSK",
+    "company": "CleanSpark, Inc.",
+    "roe": -0.2739803625,
+    "roic": -0.0916547044,
+    "op_income": -316554000.0,
+    "net_income": -378711000.0,
+    "revenue": 181180000.0,
+    "net_margin": -2.090247267910365,
+    "op_margin": -1.747179600397395,
+    "fcf_ni": 0.5229924665510112,
+    "rev_growth": -0.1899,
+    "eps_growth": -288.1304,
+    "fwd_eps_growth": -0.46210101687733923,
+    "eps_beat": "N",
+    "fwd_pe": -1.8994664083,
+    "peg": 0.04110500386118382,
+    "ev_ebitda": -14.0230684887,
+    "net_debt_ebitda": -4.435553897,
+    "current_ratio": 10.5424919532,
+    "earnings_date": "2026-05-07",
+    "days_to_earn": 2.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 1.4,
+    "score_prof": 1.2,
+    "score_growth": 1.3,
+    "score_val": 5.0,
+    "score_bs": 5.0,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": 3.03,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "MSTR",
+    "company": "Strategy Inc",
+    "roe": -0.2472422648,
+    "roic": -0.2029888192,
+    "op_income": -17445805000.0,
+    "net_income": -12619980000.0,
+    "revenue": 122989000.0,
+    "net_margin": -102.61063997593281,
+    "op_margin": -141.8484986462204,
+    "fcf_ni": 0.0025525397029155356,
+    "rev_growth": -0.0443,
+    "eps_growth": -5.6161,
+    "fwd_eps_growth": -0.7545820438704116,
+    "eps_beat": "N",
+    "fwd_pe": -0.8849656675,
+    "peg": 0.011727891946127198,
+    "ev_ebitda": -2.9035892729,
+    "net_debt_ebitda": -0.3428407144,
+    "current_ratio": 5.6170469581,
+    "earnings_date": "2026-05-05",
+    "days_to_earn": 0.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 2.4,
+    "score_prof": 1.0,
+    "score_growth": 1.3,
+    "score_val": 5.0,
+    "score_bs": 5.0,
+    "score_cat": 3.5,
+    "score_opts": 3.3,
+    "composite": 2.93,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "TEAM",
+    "company": "Atlassian Corporation",
+    "roe": -0.1119293117,
+    "roic": -0.0236879037,
+    "op_income": -56283999.0,
+    "net_income": -98388999.0,
+    "revenue": 1786971000.0,
+    "net_margin": -0.05505909105407978,
+    "op_margin": -0.031496873200516404,
+    "fcf_ni": -5.704540199661956,
+    "rev_growth": 0.1265,
+    "eps_growth": -1.375,
+    "fwd_eps_growth": 0.145012815488249,
+    "eps_beat": "N",
+    "fwd_pe": -45.2562312931,
+    "peg": -3.120843571013026,
+    "ev_ebitda": -1194.5024787833,
+    "net_debt_ebitda": -7.1117333333,
+    "current_ratio": 0.7022706516,
+    "earnings_date": "2026-07-30",
+    "days_to_earn": 86.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 3.4,
+    "score_prof": 1.0,
+    "score_growth": 2.8,
+    "score_val": 5.0,
+    "score_bs": 3.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.05,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "TOST",
+    "company": "Toast, Inc.",
+    "roe": 0.0475517891,
+    "roic": 0.0409007353,
+    "op_income": 89000000.0,
+    "net_income": 101000000.0,
+    "revenue": 1633000000.0,
+    "net_margin": 0.06184935701163503,
+    "op_margin": 0.054500918554807105,
+    "fcf_ni": 1.7623762376237624,
+    "rev_growth": 0.0,
+    "eps_growth": -0.0556,
+    "fwd_eps_growth": 0.27118993280081144,
+    "eps_beat": "N",
+    "fwd_pe": 51.6828712871,
+    "peg": 1.9057813375786696,
+    "ev_ebitda": 184.5932075472,
+    "net_debt_ebitda": -12.3867924528,
+    "current_ratio": 2.7543859649,
+    "earnings_date": "2026-05-07",
+    "days_to_earn": 2.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 4.4,
+    "score_prof": 2.2,
+    "score_growth": 2.5,
+    "score_val": 1.7,
+    "score_bs": 5.0,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": 2.92,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "COIN",
+    "company": "Coinbase Global, Inc.",
+    "roe": -0.0450706676,
+    "roic": -0.0147323914,
+    "op_income": -444409000.0,
+    "net_income": -666733000.0,
+    "revenue": 1032185999.0,
+    "net_margin": -0.6459426892497502,
+    "op_margin": -0.43055127702812407,
+    "fcf_ni": -4.597269071727363,
+    "rev_growth": -0.4476,
+    "eps_growth": -2.5091,
+    "fwd_eps_growth": 0.8573718896172773,
+    "eps_beat": "N",
+    "fwd_pe": -22.7474488963,
+    "peg": -0.2653160101441423,
+    "ev_ebitda": -72.1827539055,
+    "net_debt_ebitda": 4.3578119046,
+    "current_ratio": 2.3431541467,
+    "earnings_date": "2026-05-07",
+    "days_to_earn": 2.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 5.4,
+    "score_prof": 1.0,
+    "score_growth": 2.3,
+    "score_val": 5.0,
+    "score_bs": 3.5,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": 2.93,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "U",
+    "company": "Unity Software Inc.",
+    "roe": -0.0277883829,
+    "roic": -0.0152823418,
+    "op_income": -97870000.0,
+    "net_income": -89963000.0,
+    "revenue": 503089000.0,
+    "net_margin": -0.17882124236467106,
+    "op_margin": -0.19453814335038133,
+    "fcf_ni": -1.3192312395095762,
+    "rev_growth": 0.069,
+    "eps_growth": 0.3,
+    "fwd_eps_growth": -0.7577831653017179,
+    "eps_beat": "Y",
+    "fwd_pe": -52.7598112835,
+    "peg": 0.6962388939122609,
+    "ev_ebitda": 567.5043074979,
+    "net_debt_ebitda": 9.6912974498,
+    "current_ratio": 1.8431840941,
+    "earnings_date": "2026-05-07",
+    "days_to_earn": 2.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 6.4,
+    "score_prof": 1.0,
+    "score_growth": 3.5,
+    "score_val": 3.7,
+    "score_bs": 2.5,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": 2.77,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "CRBG",
+    "company": "Corebridge Financial, Inc.",
+    "roe": 0.0616619953,
+    "roic": 0.0020466839,
+    "op_income": 971000000.0,
+    "net_income": 814000000.0,
+    "revenue": 720000000.0,
+    "net_margin": 1.1305555555555555,
+    "op_margin": 1.3486111111111112,
+    "fcf_ni": 2.310810810810811,
+    "rev_growth": -0.0055,
+    "eps_growth": 4.8889,
+    "fwd_eps_growth": 0.2009787246250888,
+    "eps_beat": "Y",
+    "fwd_pe": 4.7312045455,
+    "peg": 0.23540822812592316,
+    "ev_ebitda": 20.2535646045,
+    "net_debt_ebitda": 8.1902897416,
+    "current_ratio": 2.8411705007,
+    "earnings_date": "2026-07-30",
+    "days_to_earn": 86.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 7.4,
+    "score_prof": 3.6,
+    "score_growth": 4.0,
+    "score_val": 4.3,
+    "score_bs": 3.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.86,
+    "verdict": "Buy",
+    "sizing": "Half size \u2014 ITM call preferred",
+    "period": ""
+  },
+  {
+    "ticker": "KVYO",
+    "company": "Klaviyo, Inc.",
+    "roe": 0.005873504,
+    "roic": -0.0012681474,
+    "op_income": -1846000.0,
+    "net_income": 7028000.0,
+    "revenue": 350195000.0,
+    "net_margin": 0.020068818800953753,
+    "op_margin": -0.0052713488199431745,
+    "fcf_ni": 12.442800227660786,
+    "rev_growth": 0.1265,
+    "eps_growth": 17.5714,
+    "fwd_eps_growth": 0.21243304030278473,
+    "eps_beat": "Y",
+    "fwd_pe": 349.9996221333,
+    "peg": 16.475762039390816,
+    "ev_ebitda": 2430.3449118607,
+    "net_debt_ebitda": -257.9581967213,
+    "current_ratio": 4.2733344435,
+    "earnings_date": "2026-05-05",
+    "days_to_earn": 0.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 8.4,
+    "score_prof": 1.8,
+    "score_growth": 4.8,
+    "score_val": 1.0,
+    "score_bs": 5.0,
+    "score_cat": 3.5,
+    "score_opts": 3.3,
+    "composite": 3.2,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "DKNG",
+    "company": "DraftKings Inc.",
+    "roe": 0.2160481803,
+    "roic": 0.0528399966,
+    "op_income": 158113000.0,
+    "net_income": 136426000.0,
+    "revenue": 1989193000.0,
+    "net_margin": 0.06858359143632618,
+    "op_margin": 0.07948600261513086,
+    "fcf_ni": 2.3200636242358494,
+    "rev_growth": 0.7388,
+    "eps_growth": 1.5385,
+    "fwd_eps_growth": 3.0829115449505906,
+    "eps_beat": "Y",
+    "fwd_pe": 30.7678751851,
+    "peg": 0.0998013557524665,
+    "ev_ebitda": 73.7555718502,
+    "net_debt_ebitda": 1.4200805635,
+    "current_ratio": 1.0339156842,
+    "earnings_date": "2026-05-07",
+    "days_to_earn": 2.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 9.4,
+    "score_prof": 3.2,
+    "score_growth": 5.0,
+    "score_val": 2.7,
+    "score_bs": 3.5,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": 3.69,
+    "verdict": "Buy",
+    "sizing": "Half size \u2014 ITM call preferred",
+    "period": ""
+  },
+  {
+    "ticker": "CRM",
+    "company": "Salesforce, Inc.",
+    "roe": 0.0328531331,
+    "roic": 0.0227269812,
+    "op_income": 2451000000.0,
+    "net_income": 1943000000.0,
+    "revenue": 11201000000.0,
+    "net_margin": 0.1734666547629676,
+    "op_margin": 0.21881974823676456,
+    "fcf_ni": 2.739577972207926,
+    "rev_growth": 0.0918,
+    "eps_growth": -0.0502,
+    "fwd_eps_growth": 0.12138335137889307,
+    "eps_beat": "N",
+    "fwd_pe": 25.539262738,
+    "peg": 2.104016938721708,
+    "ev_ebitda": 55.5870197439,
+    "net_debt_ebitda": 2.6278014941,
+    "current_ratio": 0.7603319144,
+    "earnings_date": "2026-05-27",
+    "days_to_earn": 22.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 10.4,
+    "score_prof": 3.0,
+    "score_growth": 2.5,
+    "score_val": 2.0,
+    "score_bs": 2.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 2.68,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "SNOW",
+    "company": "Snowflake Inc.",
+    "roe": -0.1608802444,
+    "roic": -0.0668344816,
+    "op_income": -318159000.0,
+    "net_income": -309550000.0,
+    "revenue": 1283994000.0,
+    "net_margin": -0.24108368107639133,
+    "op_margin": -0.24778854106794893,
+    "fcf_ni": -2.471603941204975,
+    "rev_growth": 0.0586,
+    "eps_growth": -0.0345,
+    "fwd_eps_growth": 0.47786668866523674,
+    "eps_beat": "N",
+    "fwd_pe": -53.2710761589,
+    "peg": -1.114768562497947,
+    "ev_ebitda": -219.7091504903,
+    "net_debt_ebitda": 0.2903375359,
+    "current_ratio": 1.2987366146,
+    "earnings_date": "2026-05-27",
+    "days_to_earn": 22.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 11.4,
+    "score_prof": 1.0,
+    "score_growth": 2.8,
+    "score_val": 5.0,
+    "score_bs": 4.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.25,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "ADBE",
+    "company": "Adobe Inc.",
+    "roe": 0.1652234759,
+    "roic": 0.097983076,
+    "op_income": 2418000000.0,
+    "net_income": 1889000000.0,
+    "revenue": 6398000000.0,
+    "net_margin": 0.2952485151609878,
+    "op_margin": 0.3779306033135355,
+    "fcf_ni": 1.5463208046585495,
+    "rev_growth": 0.0329,
+    "eps_growth": 0.036,
+    "fwd_eps_growth": 0.12299648399354425,
+    "eps_beat": "Y",
+    "fwd_pe": 14.2387638962,
+    "peg": 1.1576561730778707,
+    "ev_ebitda": 41.6327546296,
+    "net_debt_ebitda": 0.125,
+    "current_ratio": 0.9118525022,
+    "earnings_date": "2026-06-11",
+    "days_to_earn": 37.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 12.4,
+    "score_prof": 4.4,
+    "score_growth": 3.3,
+    "score_val": 3.3,
+    "score_bs": 3.5,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.79,
+    "verdict": "Buy",
+    "sizing": "Half size \u2014 ITM call preferred",
+    "period": ""
+  },
+  {
+    "ticker": "VRNS",
+    "company": "Varonis Systems, Inc.",
+    "roe": -0.0812633816,
+    "roic": -0.041112713,
+    "op_income": -44481000.0,
+    "net_income": -36854000.0,
+    "revenue": 173126000.0,
+    "net_margin": -0.21287386065640054,
+    "op_margin": -0.25692847983549555,
+    "fcf_ni": -1.3586313561621535,
+    "rev_growth": -0.0014,
+    "eps_growth": -0.3913,
+    "fwd_eps_growth": 2.3057362507392076,
+    "eps_beat": "N",
+    "fwd_pe": -16.8636353562,
+    "peg": -0.073137746569208,
+    "ev_ebitda": -70.2228093222,
+    "net_debt_ebitda": -8.2702669026,
+    "current_ratio": 1.6927862527,
+    "earnings_date": "2026-07-28",
+    "days_to_earn": 84.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 13.4,
+    "score_prof": 1.0,
+    "score_growth": 2.3,
+    "score_val": 5.0,
+    "score_bs": 4.5,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.23,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "VEEV",
+    "company": "Veeva Systems Inc.",
+    "roe": 0.0338478717,
+    "roic": 0.0257113551,
+    "op_income": 245876000.0,
+    "net_income": 244204000.0,
+    "revenue": 835951000.0,
+    "net_margin": 0.2921271701331777,
+    "op_margin": 0.29412728736492927,
+    "fcf_ni": 0.40874842344924733,
+    "rev_growth": 0.0305,
+    "eps_growth": 0.0347,
+    "fwd_eps_growth": 0.11603122072112922,
+    "eps_beat": "Y",
+    "fwd_pe": 34.3082264828,
+    "peg": 2.9568099231892764,
+    "ev_ebitda": 130.9092817518,
+    "net_debt_ebitda": -5.3904163074,
+    "current_ratio": 4.8853734997,
+    "earnings_date": "2026-05-27",
+    "days_to_earn": 22.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 14.4,
+    "score_prof": 2.6,
+    "score_growth": 3.3,
+    "score_val": 1.7,
+    "score_bs": 5.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.32,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "DT",
+    "company": "Dynatrace, Inc.",
+    "roe": 0.0145703343,
+    "roic": 0.0117952506,
+    "op_income": 72738000.0,
+    "net_income": 40055000.0,
+    "revenue": 515473000.0,
+    "net_margin": 0.07770533083207073,
+    "op_margin": 0.141109233655303,
+    "fcf_ni": 0.6799151167145175,
+    "rev_growth": 0.0438,
+    "eps_growth": -0.3158,
+    "fwd_eps_growth": 0.1354928389400086,
+    "eps_beat": "N",
+    "fwd_pe": 81.4557744352,
+    "peg": 6.011813987547026,
+    "ev_ebitda": 134.3143155887,
+    "net_debt_ebitda": -10.3943916529,
+    "current_ratio": 1.5645819786,
+    "earnings_date": "2026-05-13",
+    "days_to_earn": 8.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 15.4,
+    "score_prof": 2.0,
+    "score_growth": 2.3,
+    "score_val": 1.0,
+    "score_bs": 4.5,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 2.68,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "TU",
+    "company": "TELUS Corporation",
+    "roe": 0.0185103011,
+    "roic": 0.0092345738,
+    "op_income": 694000000.0,
+    "net_income": 292000000.0,
+    "revenue": 5230000000.0,
+    "net_margin": 0.05583173996175908,
+    "op_margin": 0.1326959847036329,
+    "fcf_ni": 1.7157534246575343,
+    "rev_growth": 0.0322,
+    "eps_growth": -0.4063,
+    "fwd_eps_growth": 0.10303316237234994,
+    "eps_beat": "N",
+    "fwd_pe": 23.8026315749,
+    "peg": 2.31019130412401,
+    "ev_ebitda": 30.353415691,
+    "net_debt_ebitda": 15.4544480171,
+    "current_ratio": 0.8640726597,
+    "earnings_date": "2026-05-08",
+    "days_to_earn": 3.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 16.4,
+    "score_prof": 2.4,
+    "score_growth": 2.3,
+    "score_val": 2.0,
+    "score_bs": 1.5,
+    "score_cat": 4.5,
+    "score_opts": 3.3,
+    "composite": 2.33,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "NTNX",
+    "company": "Nutanix, Inc.",
+    "roe": -0.1239307243,
+    "roic": 0.0474214713,
+    "op_income": 86280000.0,
+    "net_income": 103022000.0,
+    "revenue": 722825000.0,
+    "net_margin": 0.14252689101788124,
+    "op_margin": 0.11936499152630305,
+    "fcf_ni": 1.8580303236201976,
+    "rev_growth": 0.0779,
+    "eps_growth": 0.6522,
+    "fwd_eps_growth": 0.18433903798355386,
+    "eps_beat": "Y",
+    "fwd_pe": 25.680918663,
+    "peg": 1.3931351136426768,
+    "ev_ebitda": 99.7108500493,
+    "net_debt_ebitda": 8.1308780007,
+    "current_ratio": 1.6545050427,
+    "earnings_date": "2026-05-27",
+    "days_to_earn": 22.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 17.4,
+    "score_prof": 2.8,
+    "score_growth": 4.3,
+    "score_val": 2.7,
+    "score_bs": 2.5,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.32,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "TEM",
+    "company": "Tempus AI, Inc.",
+    "roe": -0.110244522,
+    "roic": -0.0226663362,
+    "op_income": -48228000.0,
+    "net_income": -54166000.0,
+    "revenue": 367211000.0,
+    "net_margin": -0.14750647447925036,
+    "op_margin": -0.13133593492569667,
+    "fcf_ni": 3.7494738396780267,
+    "rev_growth": 0.0988,
+    "eps_growth": 0.3478,
+    "fwd_eps_growth": -0.822269385104261,
+    "eps_beat": "Y",
+    "fwd_pe": -47.4942270059,
+    "peg": 0.5775993593617486,
+    "ev_ebitda": -87.3768103642,
+    "net_debt_ebitda": -1.7549736652,
+    "current_ratio": 3.1342980977,
+    "earnings_date": "2026-05-05",
+    "days_to_earn": 0.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 18.4,
+    "score_prof": 1.8,
+    "score_growth": 3.5,
+    "score_val": 5.0,
+    "score_bs": 5.0,
+    "score_cat": 3.5,
+    "score_opts": 3.3,
+    "composite": 3.68,
+    "verdict": "Buy",
+    "sizing": "Half size \u2014 ITM call preferred",
+    "period": ""
+  },
+  {
+    "ticker": "ARCC",
+    "company": "Ares Capital Corporation",
+    "roe": 0.0065410594,
+    "roic": 0.0126005949,
+    "op_income": 404000000.0,
+    "net_income": 92000000.0,
+    "revenue": 763000000.0,
+    "net_margin": 0.12057667103538663,
+    "op_margin": 0.5294888597640891,
+    "fcf_ni": 2.0,
+    "rev_growth": 0.2016,
+    "eps_growth": -0.6829,
+    "fwd_eps_growth": 0.0066852542541338275,
+    "eps_beat": "N",
+    "fwd_pe": 35.1585869565,
+    "peg": 52.59124876927409,
+    "ev_ebitda": 39.8329014085,
+    "net_debt_ebitda": 21.6098591549,
+    "current_ratio": 0.8706896552,
+    "earnings_date": "2026-07-28",
+    "days_to_earn": 84.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 19.4,
+    "score_prof": 3.2,
+    "score_growth": 2.5,
+    "score_val": 1.3,
+    "score_bs": 1.5,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 2.49,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "KKR",
+    "company": "KKR & Co. Inc.",
+    "roe": 0.0370812956,
+    "roic": 0.0046989029,
+    "op_income": 2210480000.0,
+    "net_income": 1145907000.0,
+    "revenue": 5520685000.0,
+    "net_margin": 0.20756609007759,
+    "op_margin": 0.40039958809459336,
+    "fcf_ni": 1.9795166623469445,
+    "rev_growth": 0.0102,
+    "eps_growth": 0.2784,
+    "fwd_eps_growth": 0.23973735217465333,
+    "eps_beat": "Y",
+    "fwd_pe": 24.7917064773,
+    "peg": 1.0341194750177587,
+    "ev_ebitda": 49.0917321951,
+    "net_debt_ebitda": 15.9638781607,
+    "current_ratio": 79.8545685026,
+    "earnings_date": "2026-05-05",
+    "days_to_earn": 0.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 20.4,
+    "score_prof": 3.4,
+    "score_growth": 4.3,
+    "score_val": 2.7,
+    "score_bs": 3.0,
+    "score_cat": 3.5,
+    "score_opts": 3.3,
+    "composite": 3.42,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "TENB",
+    "company": "Tenable Holdings, Inc.",
+    "roe": 0.0056965595,
+    "roic": 0.003599751,
+    "op_income": 11214000.0,
+    "net_income": 1414000.0,
+    "revenue": 262058000.0,
+    "net_margin": 0.0053957520854162055,
+    "op_margin": 0.04279205366750872,
+    "fcf_ni": 60.38472418670438,
+    "rev_growth": 0.0059,
+    "eps_growth": 2.9677,
+    "fwd_eps_growth": 0.10536050991965883,
+    "eps_beat": "Y",
+    "fwd_pe": 346.7074328147,
+    "peg": 32.9067724785194,
+    "ev_ebitda": 104.5195522806,
+    "net_debt_ebitda": 13.0645928551,
+    "current_ratio": 0.7815281345,
+    "earnings_date": "2026-07-29",
+    "days_to_earn": 85.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 21.4,
+    "score_prof": 2.0,
+    "score_growth": 4.0,
+    "score_val": 1.0,
+    "score_bs": 1.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 2.4,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "IOT",
+    "company": "Samsara Inc.",
+    "roe": 0.0155148344,
+    "roic": 0.0044115661,
+    "op_income": 9019000.0,
+    "net_income": 22038000.0,
+    "revenue": 444296000.0,
+    "net_margin": 0.049602067090408195,
+    "op_margin": 0.020299530043034374,
+    "fcf_ni": 2.8003902350485523,
+    "rev_growth": 0.0681,
+    "eps_growth": 1.8222,
+    "fwd_eps_growth": 0.33850368560053595,
+    "eps_beat": "Y",
+    "fwd_pe": 184.2313302103,
+    "peg": 5.442520659219916,
+    "ev_ebitda": 972.2411537718,
+    "net_debt_ebitda": -14.9547747857,
+    "current_ratio": 1.6434629754,
+    "earnings_date": "2026-06-04",
+    "days_to_earn": 30.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 22.4,
+    "score_prof": 2.0,
+    "score_growth": 4.5,
+    "score_val": 1.0,
+    "score_bs": 4.5,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.23,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "GPN",
+    "company": "Global Payments Inc.",
+    "roe": 0.0095035263,
+    "roic": 0.0051405434,
+    "op_income": 247504000.0,
+    "net_income": 217524000.0,
+    "revenue": 1896765000.0,
+    "net_margin": 0.11468157626274209,
+    "op_margin": 0.13048743518569775,
+    "fcf_ni": 1.5952216766885494,
+    "rev_growth": -0.0552,
+    "eps_growth": -0.6566,
+    "fwd_eps_growth": 0.17418683369666935,
+    "eps_beat": "N",
+    "fwd_pe": 21.3305986926,
+    "peg": 1.2245815736994974,
+    "ev_ebitda": 94.0814014146,
+    "net_debt_ebitda": 39.5672539183,
+    "current_ratio": 1.6900810852,
+    "earnings_date": "2026-05-06",
+    "days_to_earn": 1.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 23.4,
+    "score_prof": 2.6,
+    "score_growth": 2.0,
+    "score_val": 2.7,
+    "score_bs": 2.5,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": 2.59,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "WDAY",
+    "company": "Workday, Inc.",
+    "roe": 0.0185778347,
+    "roic": 0.014118865,
+    "op_income": 304000000.0,
+    "net_income": 145000000.0,
+    "revenue": 2532000000.0,
+    "net_margin": 0.057266982622432856,
+    "op_margin": 0.12006319115323855,
+    "fcf_ni": 8.4,
+    "rev_growth": 0.0411,
+    "eps_growth": -0.4211,
+    "fwd_eps_growth": 0.1547269136520057,
+    "eps_beat": "N",
+    "fwd_pe": 79.1161672241,
+    "peg": 5.113277668165678,
+    "ev_ebitda": 133.5384404155,
+    "net_debt_ebitda": 6.4265927978,
+    "current_ratio": 1.3215741612,
+    "earnings_date": "2026-05-21",
+    "days_to_earn": 16.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 24.4,
+    "score_prof": 2.4,
+    "score_growth": 2.3,
+    "score_val": 1.0,
+    "score_bs": 2.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 2.28,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "UL",
+    "company": "Unilever PLC",
+    "roe": 0.1659591288,
+    "roic": 0.1126682208,
+    "op_income": 7245411000.0,
+    "net_income": 2580497000.0,
+    "revenue": 20348374000.0,
+    "net_margin": 0.12681588219284745,
+    "op_margin": 0.35606830304966874,
+    "fcf_ni": 2.122618955573287,
+    "rev_growth": 0.3508,
+    "eps_growth": 0.662,
+    "fwd_eps_growth": 0.053974308456143094,
+    "eps_beat": "Y",
+    "fwd_pe": 11.7900469228,
+    "peg": 2.1843812843623596,
+    "ev_ebitda": 31.6041163,
+    "net_debt_ebitda": 5.5094794484,
+    "current_ratio": 0.7878312414,
+    "earnings_date": "2026-07-28",
+    "days_to_earn": 84.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 25.4,
+    "score_prof": 4.2,
+    "score_growth": 4.5,
+    "score_val": 2.7,
+    "score_bs": 1.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.42,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "CLBT",
+    "company": "Cellebrite DI Ltd.",
+    "roe": 0.0438988433,
+    "roic": 0.0293748353,
+    "op_income": 20805000.0,
+    "net_income": 21261000.0,
+    "revenue": 128821000.0,
+    "net_margin": 0.16504296659706102,
+    "op_margin": 0.16150317106682915,
+    "fcf_ni": 3.6813884577395233,
+    "rev_growth": 0.0222,
+    "eps_growth": 0.0837,
+    "fwd_eps_growth": 0.23130434782608703,
+    "eps_beat": "Y",
+    "fwd_pe": 56.3444542902,
+    "peg": 2.435944452395864,
+    "ev_ebitda": 189.5243987174,
+    "net_debt_ebitda": -4.1132708316,
+    "current_ratio": 1.5577954699,
+    "earnings_date": "2026-05-14",
+    "days_to_earn": 9.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 26.4,
+    "score_prof": 3.0,
+    "score_growth": 3.8,
+    "score_val": 1.3,
+    "score_bs": 4.5,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.36,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "ARES",
+    "company": "Ares Management Corporation",
+    "roe": 0.0,
+    "roic": 0.0,
+    "op_income": 364948000.0,
+    "net_income": 142589000.0,
+    "revenue": 1533411000.0,
+    "net_margin": 0.09298811603673118,
+    "op_margin": 0.23799751012611753,
+    "fcf_ni": -15.077747932869997,
+    "rev_growth": -0.1316,
+    "eps_growth": 3.0,
+    "fwd_eps_growth": 0.2179218378273654,
+    "eps_beat": "Y",
+    "fwd_pe": 42.8540574918,
+    "peg": 1.9664875222715577,
+    "ev_ebitda": 0.0,
+    "net_debt_ebitda": 0.0,
+    "current_ratio": 0.0,
+    "earnings_date": "2026-07-30",
+    "days_to_earn": 86.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 27.4,
+    "score_prof": 2.0,
+    "score_growth": 4.0,
+    "score_val": 3.0,
+    "score_bs": 3.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.2,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "TPG",
+    "company": "TPG Inc.",
+    "roe": -0.0012828895,
+    "roic": -0.007920773,
+    "op_income": -120323000.0,
+    "net_income": -1454000.0,
+    "revenue": 496151000.0,
+    "net_margin": -0.0029305594466200813,
+    "op_margin": -0.242512864027282,
+    "fcf_ni": -110.23658872077029,
+    "rev_growth": -0.6673,
+    "eps_growth": -1.1,
+    "fwd_eps_growth": 0.2739408775585944,
+    "eps_beat": "N",
+    "fwd_pe": -1111.9022300292,
+    "peg": -40.58913149211805,
+    "ev_ebitda": -272.5287267761,
+    "net_debt_ebitda": -32.0121840746,
+    "current_ratio": -148.0256033664,
+    "earnings_date": "2026-08-05",
+    "days_to_earn": 92.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 28.4,
+    "score_prof": 1.0,
+    "score_growth": 2.3,
+    "score_val": 5.0,
+    "score_bs": 3.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 2.93,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "RBRK",
+    "company": "Rubrik, Inc.",
+    "roe": 0.1673832959,
+    "roic": -0.0567162165,
+    "op_income": -82379000.0,
+    "net_income": -86966000.0,
+    "revenue": 377684000.0,
+    "net_margin": -0.2302612766227852,
+    "op_margin": -0.21811620296332385,
+    "fcf_ni": -1.0050824460133845,
+    "rev_growth": 0.0786,
+    "eps_growth": -0.375,
+    "fwd_eps_growth": -1.994249899373239,
+    "eps_beat": "N",
+    "fwd_pe": -31.5996613619,
+    "peg": 0.15845386965711405,
+    "ev_ebitda": -142.5473676544,
+    "net_debt_ebitda": -9.1106349919,
+    "current_ratio": 1.692134067,
+    "earnings_date": "2026-06-04",
+    "days_to_earn": 30.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 29.4,
+    "score_prof": 1.6,
+    "score_growth": 1.8,
+    "score_val": 5.0,
+    "score_bs": 4.5,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.25,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "OBDC",
+    "company": "Blue Owl Capital Corporation",
+    "roe": 0.0160987574,
+    "roic": 0.015126821,
+    "op_income": 265889000.0,
+    "net_income": 119087000.0,
+    "revenue": 407894000.0,
+    "net_margin": 0.2919557532103929,
+    "op_margin": 0.6518580807758878,
+    "fcf_ni": 6.910040558583221,
+    "rev_growth": 0.3979,
+    "eps_growth": -0.08,
+    "fwd_eps_growth": -0.020759124087591254,
+    "eps_beat": "N",
+    "fwd_pe": 13.25101819,
+    "peg": -6.38322606199015,
+    "ev_ebitda": 58.5681955163,
+    "net_debt_ebitda": 34.8737856424,
+    "current_ratio": 0.0,
+    "earnings_date": "2026-05-06",
+    "days_to_earn": 1.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 30.4,
+    "score_prof": 3.4,
+    "score_growth": 2.3,
+    "score_val": 3.7,
+    "score_bs": 1.0,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": 2.77,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "SOC",
+    "company": "Sable Offshore Corp.",
+    "roe": -0.1163646845,
+    "roic": -0.1145232645,
+    "op_income": -100216000.0,
+    "net_income": -62174000.0,
+    "revenue": 0.0,
+    "net_margin": "#DIV/0!",
+    "op_margin": "#DIV/0!",
+    "fcf_ni": 3.0987068549554477,
+    "rev_growth": 0.0,
+    "eps_growth": 0.6446,
+    "fwd_eps_growth": 0.5934579439252338,
+    "eps_beat": "Y",
+    "fwd_pe": -3.5608973247,
+    "peg": -0.060002521849275584,
+    "ev_ebitda": -16.2711298569,
+    "net_debt_ebitda": 2.0173058257,
+    "current_ratio": 0.1325959401,
+    "earnings_date": "2026-05-07",
+    "days_to_earn": 2.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 31.4,
+    "score_prof": null,
+    "score_growth": 4.3,
+    "score_val": 5.0,
+    "score_bs": 2.0,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": null,
+    "verdict": "",
+    "sizing": "",
+    "period": ""
+  },
+  {
+    "ticker": "EXLS",
+    "company": "ExlService Holdings, Inc.",
+    "roe": 0.0861333532,
+    "roic": 0.0481848013,
+    "op_income": 91826000.0,
+    "net_income": 67081000.0,
+    "revenue": 570351000.0,
+    "net_margin": 0.11761353973255066,
+    "op_margin": 0.16099910406048207,
+    "fcf_ni": -0.1671710320358969,
+    "rev_growth": 0.0511,
+    "eps_growth": 0.1316,
+    "fwd_eps_growth": 0.11838598478209082,
+    "eps_beat": "Y",
+    "fwd_pe": 17.7088017701,
+    "peg": 1.4958528919361533,
+    "ev_ebitda": 44.53161023,
+    "net_debt_ebitda": -0.3715425105,
+    "current_ratio": 2.662182736,
+    "earnings_date": "2026-07-28",
+    "days_to_earn": 84.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 32.4,
+    "score_prof": 2.2,
+    "score_growth": 4.0,
+    "score_val": 3.0,
+    "score_bs": 5.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.65,
+    "verdict": "Buy",
+    "sizing": "Half size \u2014 ITM call preferred",
+    "period": ""
+  },
+  {
+    "ticker": "EXE",
+    "company": "Expand Energy Corporation",
+    "roe": 0.0592960196,
+    "roic": 0.0449745911,
+    "op_income": 1531000000.0,
+    "net_income": 1159000000.0,
+    "revenue": 4397000000.0,
+    "net_margin": 0.26358881055264954,
+    "op_margin": 0.3481919490561747,
+    "fcf_ni": 1.4624676445211389,
+    "rev_growth": 0.4431,
+    "eps_growth": 1.0466,
+    "fwd_eps_growth": 0.045199305829490125,
+    "eps_beat": "Y",
+    "fwd_pe": 5.6808071613,
+    "peg": 1.256835045814703,
+    "ev_ebitda": 13.0130338983,
+    "net_debt_ebitda": 1.266280107,
+    "current_ratio": 1.1106329114,
+    "earnings_date": "2026-07-28",
+    "days_to_earn": 84.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 33.4,
+    "score_prof": 3.6,
+    "score_growth": 4.3,
+    "score_val": 4.3,
+    "score_bs": 3.5,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 4.04,
+    "verdict": "Strong Buy",
+    "sizing": "Full size \u2014 stock or ITM call",
+    "period": ""
+  },
+  {
+    "ticker": "INTU",
+    "company": "Intuit Inc.",
+    "roe": 0.0363684072,
+    "roic": 0.0259558964,
+    "op_income": 855000000.0,
+    "net_income": 693000000.0,
+    "revenue": 4651000000.0,
+    "net_margin": 0.14900021500752525,
+    "op_margin": 0.1838314341001935,
+    "fcf_ni": 2.1991341991341993,
+    "rev_growth": 0.1972,
+    "eps_growth": 0.5563,
+    "fwd_eps_growth": 0.13739943377922204,
+    "eps_beat": "Y",
+    "fwd_pe": 50.215974026,
+    "peg": 3.6547438839295863,
+    "ev_ebitda": 114.8487859425,
+    "net_debt_ebitda": 3.6677316294,
+    "current_ratio": 1.3232700136,
+    "earnings_date": "2026-05-20",
+    "days_to_earn": 15.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 34.4,
+    "score_prof": 3.0,
+    "score_growth": 4.5,
+    "score_val": 1.0,
+    "score_bs": 2.5,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.08,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "ZS",
+    "company": "Zscaler, Inc.",
+    "roe": -0.0156251423,
+    "roic": -0.0115553151,
+    "op_income": -51773000.0,
+    "net_income": -34312000.0,
+    "revenue": 815751000.0,
+    "net_margin": -0.04206185465908102,
+    "op_margin": -0.06346667058943231,
+    "fcf_ni": -6.967154348332945,
+    "rev_growth": 0.0351,
+    "eps_growth": -2.0,
+    "fwd_eps_growth": 0.13922687735214226,
+    "eps_beat": "N",
+    "fwd_pe": -232.7042786052,
+    "peg": -16.714034174351855,
+    "ev_ebitda": 1124.8691842932,
+    "net_debt_ebitda": 22.8300265691,
+    "current_ratio": 1.9012505948,
+    "earnings_date": "2026-05-28",
+    "days_to_earn": 23.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 35.4,
+    "score_prof": 1.0,
+    "score_growth": 2.3,
+    "score_val": 3.7,
+    "score_bs": 2.5,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 2.57,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "OKTA",
+    "company": "Okta, Inc.",
+    "roe": 0.0090012859,
+    "roic": 0.0059952038,
+    "op_income": 50000000.0,
+    "net_income": 63000000.0,
+    "revenue": 761000000.0,
+    "net_margin": 0.08278580814717477,
+    "op_margin": 0.0657030223390276,
+    "fcf_ni": 4.5396825396825395,
+    "rev_growth": 0.0256,
+    "eps_growth": 0.5,
+    "fwd_eps_growth": 0.10198171085961283,
+    "eps_beat": "Y",
+    "fwd_pe": 59.4434133333,
+    "peg": 5.82883076114788,
+    "ev_ebitda": 213.8785317647,
+    "net_debt_ebitda": -6.4117647059,
+    "current_ratio": 1.3598277212,
+    "earnings_date": "2026-05-28",
+    "days_to_earn": 23.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 36.4,
+    "score_prof": 2.4,
+    "score_growth": 4.0,
+    "score_val": 1.0,
+    "score_bs": 4.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.1,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "RARE",
+    "company": "Ultragenyx Pharmaceutical Inc.",
+    "roe": 1.6125,
+    "roic": -0.0927583401,
+    "op_income": -114000000.0,
+    "net_income": -129000000.0,
+    "revenue": 207000000.0,
+    "net_margin": -0.6231884057971014,
+    "op_margin": -0.5507246376811594,
+    "fcf_ni": 0.7811395348837209,
+    "rev_growth": 0.2943,
+    "eps_growth": 0.2873,
+    "fwd_eps_growth": -0.8734602103172232,
+    "eps_beat": "Y",
+    "fwd_pe": -4.4529069767,
+    "peg": 0.05098007813181087,
+    "ev_ebitda": -29.840802167,
+    "net_debt_ebitda": -8.0026612175,
+    "current_ratio": 2.4765625,
+    "earnings_date": "2026-05-05",
+    "days_to_earn": 0.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 37.4,
+    "score_prof": 2.2,
+    "score_growth": 4.0,
+    "score_val": 5.0,
+    "score_bs": 5.0,
+    "score_cat": 3.5,
+    "score_opts": 3.3,
+    "composite": 3.9,
+    "verdict": "Buy",
+    "sizing": "Half size \u2014 ITM call preferred",
+    "period": ""
+  },
+  {
+    "ticker": "SFM",
+    "company": "Sprouts Farmers Market, Inc.",
+    "roe": 0.1141538376,
+    "roic": 0.0454505678,
+    "op_income": 216468000.0,
+    "net_income": 163724000.0,
+    "revenue": 2329179000.0,
+    "net_margin": 0.07029257948830897,
+    "op_margin": 0.09293746852431693,
+    "fcf_ni": 0.8192812293860399,
+    "rev_growth": 0.084,
+    "eps_growth": 0.8602,
+    "fwd_eps_growth": 0.06328364952745695,
+    "eps_beat": "Y",
+    "fwd_pe": 11.1853674171,
+    "peg": 1.767497213043472,
+    "ev_ebitda": 30.5134207027,
+    "net_debt_ebitda": 6.0422393116,
+    "current_ratio": 0.9218140888,
+    "earnings_date": "2026-07-29",
+    "days_to_earn": 85.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 38.4,
+    "score_prof": 2.6,
+    "score_growth": 4.0,
+    "score_val": 3.0,
+    "score_bs": 1.5,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.05,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "BXSL",
+    "company": "Blackstone Secured Lending Fund",
+    "roe": 0.0202023162,
+    "roic": 0.0159561402,
+    "op_income": 228908000.0,
+    "net_income": 126167000.0,
+    "revenue": 217359000.0,
+    "net_margin": 0.5804544555320921,
+    "op_margin": 1.0531332956077273,
+    "fcf_ni": -1.8203175156736706,
+    "rev_growth": -0.0751,
+    "eps_growth": -0.0351,
+    "fwd_eps_growth": -0.052222226073333586,
+    "eps_beat": "N",
+    "fwd_pe": 11.9560507051,
+    "peg": -2.2894563491626334,
+    "ev_ebitda": 60.1001651896,
+    "net_debt_ebitda": 33.8686038727,
+    "current_ratio": 1.2736035981,
+    "earnings_date": "2026-05-07",
+    "days_to_earn": 2.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 39.4,
+    "score_prof": 2.6,
+    "score_growth": 1.3,
+    "score_val": 3.7,
+    "score_bs": 2.0,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": 2.52,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "GDDY",
+    "company": "GoDaddy Inc.",
+    "roe": 0.9043404973,
+    "roic": 0.0465717604,
+    "op_income": 312700000.0,
+    "net_income": 214600000.0,
+    "revenue": 1266900000.0,
+    "net_margin": 0.1693898492382982,
+    "op_margin": 0.24682295366642987,
+    "fcf_ni": 2.175675675675676,
+    "rev_growth": -0.0055,
+    "eps_growth": -0.1105,
+    "fwd_eps_growth": 0.2691306848920082,
+    "eps_beat": "N",
+    "fwd_pe": 12.8691302656,
+    "peg": 0.4781740242946986,
+    "ev_ebitda": 40.4667896112,
+    "net_debt_ebitda": 7.6770555061,
+    "current_ratio": 0.6714299729,
+    "earnings_date": "2026-08-05",
+    "days_to_earn": 92.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 40.4,
+    "score_prof": 3.8,
+    "score_growth": 2.3,
+    "score_val": 3.7,
+    "score_bs": 1.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 2.97,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "BOX",
+    "company": "Box, Inc.",
+    "roe": -0.2288507675,
+    "roic": 0.0419831772,
+    "op_income": 31210000.0,
+    "net_income": 68490000.0,
+    "revenue": 305875000.0,
+    "net_margin": 0.22391499795668166,
+    "op_margin": 0.10203514507560278,
+    "fcf_ni": 1.5836034457585049,
+    "rev_growth": 0.0158,
+    "eps_growth": 9.0418,
+    "fwd_eps_growth": 0.2231441556928097,
+    "eps_beat": "Y",
+    "fwd_pe": 13.2389810556,
+    "peg": 0.593292753489156,
+    "ev_ebitda": 95.6425464102,
+    "net_debt_ebitda": 14.5208454484,
+    "current_ratio": 1.0529534664,
+    "earnings_date": "2026-05-26",
+    "days_to_earn": 21.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 41.4,
+    "score_prof": 3.0,
+    "score_growth": 4.3,
+    "score_val": 3.7,
+    "score_bs": 2.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.47,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "TRMB",
+    "company": "Trimble Inc.",
+    "roe": 0.026832528,
+    "roic": 0.0234878127,
+    "op_income": 216200000.0,
+    "net_income": 156600000.0,
+    "revenue": 969800000.0,
+    "net_margin": 0.16147659311198184,
+    "op_margin": 0.22293256341513715,
+    "fcf_ni": -0.4661558109833972,
+    "rev_growth": 0.0761,
+    "eps_growth": 0.4043,
+    "fwd_eps_growth": 0.14758310063322463,
+    "eps_beat": "Y",
+    "fwd_pe": 29.6863697318,
+    "peg": 2.011501967666131,
+    "ev_ebitda": 84.3708507909,
+    "net_debt_ebitda": 4.8687473279,
+    "current_ratio": 1.085472928,
+    "earnings_date": "2026-05-06",
+    "days_to_earn": 1.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 42.4,
+    "score_prof": 2.2,
+    "score_growth": 4.3,
+    "score_val": 1.7,
+    "score_bs": 2.0,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": 2.77,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "BILL",
+    "company": "Bill.com Holdings, Inc.",
+    "roe": -0.0006798345,
+    "roic": -0.003173347,
+    "op_income": -18076000.0,
+    "net_income": -2588000.0,
+    "revenue": 414671000.0,
+    "net_margin": -0.006241092335851796,
+    "op_margin": -0.04359118433649809,
+    "fcf_ni": -40.11785162287481,
+    "rev_growth": 0.0478,
+    "eps_growth": 0.1168,
+    "fwd_eps_growth": 0.13511751257048035,
+    "eps_beat": "N",
+    "fwd_pe": -533.3192214065,
+    "peg": -39.47076964788769,
+    "ev_ebitda": 162.5380018232,
+    "net_debt_ebitda": 18.7453053783,
+    "current_ratio": 1.653506582,
+    "earnings_date": "2026-05-07",
+    "days_to_earn": 2.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 43.4,
+    "score_prof": 1.0,
+    "score_growth": 2.8,
+    "score_val": 3.7,
+    "score_bs": 2.5,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": 2.59,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "BJ",
+    "company": "BJ's Wholesale Club Holdings, Inc.",
+    "roe": 0.0572673013,
+    "roic": 0.0278249791,
+    "op_income": 191423000.0,
+    "net_income": 125854000.0,
+    "revenue": 5575388000.0,
+    "net_margin": 0.022573137510788488,
+    "op_margin": 0.03433357463193593,
+    "fcf_ni": 1.5323311138303113,
+    "rev_growth": 0.0425,
+    "eps_growth": -0.1638,
+    "fwd_eps_growth": 0.035124066269404355,
+    "eps_beat": "N",
+    "fwd_pe": 23.9104234271,
+    "peg": 6.8074189485081735,
+    "ev_ebitda": 54.8640392934,
+    "net_debt_ebitda": 9.6297496064,
+    "current_ratio": 0.7452866473,
+    "earnings_date": "2026-05-21",
+    "days_to_earn": 16.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 44.4,
+    "score_prof": 2.2,
+    "score_growth": 1.8,
+    "score_val": 1.7,
+    "score_bs": 1.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 2.04,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "ADSK",
+    "company": "Autodesk, Inc.",
+    "roe": 0.1037766831,
+    "roic": 0.0561868072,
+    "op_income": 531000000.0,
+    "net_income": 316000000.0,
+    "revenue": 1957000000.0,
+    "net_margin": 0.1614716402657128,
+    "op_margin": 0.27133367399080227,
+    "fcf_ni": 3.0537974683544302,
+    "rev_growth": 0.0561,
+    "eps_growth": -0.0745,
+    "fwd_eps_growth": 0.21317891178726164,
+    "eps_beat": "N",
+    "fwd_pe": 42.4117405063,
+    "peg": 1.989490430865136,
+    "ev_ebitda": 109.2796767677,
+    "net_debt_ebitda": 0.9797979798,
+    "current_ratio": 0.8508953168,
+    "earnings_date": "2026-05-21",
+    "days_to_earn": 16.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 45.4,
+    "score_prof": 3.8,
+    "score_growth": 2.8,
+    "score_val": 1.7,
+    "score_bs": 3.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.09,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "HUBS",
+    "company": "HubSpot, Inc.",
+    "roe": 0.0263405484,
+    "roic": 0.0176945082,
+    "op_income": 48637000.0,
+    "net_income": 54426000.0,
+    "revenue": 846327000.0,
+    "net_margin": 0.06430847651085218,
+    "op_margin": 0.05746833079885198,
+    "fcf_ni": 3.7429904824899864,
+    "rev_growth": 0.0455,
+    "eps_growth": 2.3548,
+    "fwd_eps_growth": 0.22611018181613773,
+    "eps_beat": "Y",
+    "fwd_pe": 96.6954860728,
+    "peg": 4.276476419422291,
+    "ev_ebitda": 178.9574572614,
+    "net_debt_ebitda": -3.4427827503,
+    "current_ratio": 1.515226536,
+    "earnings_date": "2026-05-07",
+    "days_to_earn": 2.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 46.4,
+    "score_prof": 2.2,
+    "score_growth": 4.3,
+    "score_val": 1.0,
+    "score_bs": 4.5,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": 3.13,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "TRI",
+    "company": "Thomson Reuters Corporation",
+    "roe": 0.0282947173,
+    "roic": 0.0242592756,
+    "op_income": 546269744.0,
+    "net_income": 337103262.0,
+    "revenue": 2039880884.0,
+    "net_margin": 0.16525634640929357,
+    "op_margin": 0.2677949228725651,
+    "fcf_ni": 1.8019651764746198,
+    "rev_growth": 0.1447,
+    "eps_growth": -0.1915,
+    "fwd_eps_growth": 0.14002867009548542,
+    "eps_beat": "N",
+    "fwd_pe": 43.547112905,
+    "peg": 3.1098712053256854,
+    "ev_ebitda": 76.5648940204,
+    "net_debt_ebitda": 2.0409685248,
+    "current_ratio": 0.6436164989,
+    "earnings_date": "2026-05-05",
+    "days_to_earn": 0.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 47.4,
+    "score_prof": 3.2,
+    "score_growth": 2.8,
+    "score_val": 1.0,
+    "score_bs": 2.0,
+    "score_cat": 3.5,
+    "score_opts": 3.3,
+    "composite": 2.45,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "AVPT",
+    "company": "AvePoint, Inc.",
+    "roe": 0.0326802437,
+    "roic": 0.0276071275,
+    "op_income": 14525000.0,
+    "net_income": 15644000.0,
+    "revenue": 114687000.0,
+    "net_margin": 0.13640604427703226,
+    "op_margin": 0.12664905351086,
+    "fcf_ni": 1.8513167348504218,
+    "rev_growth": 0.0452,
+    "eps_growth": 0.184,
+    "fwd_eps_growth": 0.30903468674374823,
+    "eps_beat": "Y",
+    "fwd_pe": 47.749538641,
+    "peg": 1.5451190655692948,
+    "ev_ebitda": 143.5746794067,
+    "net_debt_ebitda": -26.8745579007,
+    "current_ratio": 2.2847288193,
+    "earnings_date": "2026-05-07",
+    "days_to_earn": 2.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 48.4,
+    "score_prof": 2.8,
+    "score_growth": 4.0,
+    "score_val": 1.7,
+    "score_bs": 5.0,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": 3.44,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "SJM",
+    "company": "The J. M. Smucker Company",
+    "roe": -0.1383090468,
+    "roic": 0.032899627,
+    "op_income": 473600000.0,
+    "net_income": -724200000.0,
+    "revenue": 2339400000.0,
+    "net_margin": -0.3095665555270582,
+    "op_margin": 0.20244507138582543,
+    "fcf_ni": -0.6724661695664181,
+    "rev_growth": 0.004,
+    "eps_growth": -4.0044,
+    "fwd_eps_growth": 0.11459131729231364,
+    "eps_beat": "N",
+    "fwd_pe": -3.8623867716,
+    "peg": -0.33705754178105385,
+    "ev_ebitda": -44.9795838374,
+    "net_debt_ebitda": -17.9082990564,
+    "current_ratio": 0.8435922454,
+    "earnings_date": "2026-06-04",
+    "days_to_earn": 30.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 49.4,
+    "score_prof": 1.6,
+    "score_growth": 2.3,
+    "score_val": 5.0,
+    "score_bs": 3.5,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.18,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "BXP",
+    "company": "BXP, Inc.",
+    "roe": 0.0197154061,
+    "roic": 0.0093214765,
+    "op_income": 227777000.0,
+    "net_income": 101576000.0,
+    "revenue": 872148000.0,
+    "net_margin": 0.1164664712869834,
+    "op_margin": 0.2611678293133734,
+    "fcf_ni": 2.6296664566433017,
+    "rev_growth": -0.0056,
+    "eps_growth": -0.5924,
+    "fwd_eps_growth": 0.10061756112922139,
+    "eps_beat": "N",
+    "fwd_pe": 20.2734375,
+    "peg": 2.0149005076721322,
+    "ev_ebitda": 58.1758814604,
+    "net_debt_ebitda": 37.9523676244,
+    "current_ratio": 0.5886296715,
+    "earnings_date": "2026-07-28",
+    "days_to_earn": 84.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 50.4,
+    "score_prof": 3.0,
+    "score_growth": 2.0,
+    "score_val": 2.0,
+    "score_bs": 1.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 2.35,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "NICE",
+    "company": "NICE Ltd.",
+    "roe": 0.0396299695,
+    "roic": 0.0350176681,
+    "op_income": 179856899.0,
+    "net_income": 153658578.0,
+    "revenue": 802714355.0,
+    "net_margin": 0.19142373254306633,
+    "op_margin": 0.22406089772743631,
+    "fcf_ni": 1.1707796033359101,
+    "rev_growth": 0.0966,
+    "eps_growth": 0.0687,
+    "fwd_eps_growth": 0.13782301627105828,
+    "eps_beat": "Y",
+    "fwd_pe": 11.2686018817,
+    "peg": 0.8176139360887226,
+    "ev_ebitda": 27.5806077719,
+    "net_debt_ebitda": -0.8971356792,
+    "current_ratio": 1.5537292147,
+    "earnings_date": "2026-05-06",
+    "days_to_earn": 1.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 51.4,
+    "score_prof": 3.0,
+    "score_growth": 3.8,
+    "score_val": 4.0,
+    "score_bs": 4.5,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": 3.8,
+    "verdict": "Buy",
+    "sizing": "Half size \u2014 ITM call preferred",
+    "period": ""
+  },
+  {
+    "ticker": "ESTC",
+    "company": "Elastic N.V.",
+    "roe": 0.0098016286,
+    "roic": 0.0004178455,
+    "op_income": 611000.0,
+    "net_income": 7753000.0,
+    "revenue": 449881000.0,
+    "net_margin": 0.01723344617798929,
+    "op_margin": 0.0013581369295435903,
+    "fcf_ni": 5.391590352121759,
+    "rev_growth": 0.0623,
+    "eps_growth": 1.1546,
+    "fwd_eps_growth": 0.12723435260202587,
+    "eps_beat": "Y",
+    "fwd_pe": 224.677885455,
+    "peg": 17.658586762158965,
+    "ev_ebitda": 127.942836465,
+    "net_debt_ebitda": -2.8006117126,
+    "current_ratio": 1.8180055002,
+    "earnings_date": "2026-05-28",
+    "days_to_earn": 23.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 52.4,
+    "score_prof": 1.8,
+    "score_growth": 4.3,
+    "score_val": 1.0,
+    "score_bs": 4.5,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.13,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "QTWO",
+    "company": "Q2 Holdings, Inc.",
+    "roe": 0.0435508341,
+    "roic": 0.0252800277,
+    "op_income": 28127000.0,
+    "net_income": 26639000.0,
+    "revenue": 216506000.0,
+    "net_margin": 0.123040470010069,
+    "op_margin": 0.1299132587549537,
+    "fcf_ni": 1.8665865835804647,
+    "rev_growth": 0.0398,
+    "eps_growth": 0.303,
+    "fwd_eps_growth": 0.17814993455380046,
+    "eps_beat": "Y",
+    "fwd_pe": 27.6717162806,
+    "peg": 1.553282427518561,
+    "ev_ebitda": 61.9546684027,
+    "net_debt_ebitda": 0.0329707254,
+    "current_ratio": 0.9325941176,
+    "earnings_date": "2026-07-29",
+    "days_to_earn": 85.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 53.4,
+    "score_prof": 2.8,
+    "score_growth": 4.0,
+    "score_val": 2.3,
+    "score_bs": 3.5,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.36,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "J",
+    "company": "Jacobs Solutions Inc.",
+    "roe": 0.0386759197,
+    "roic": 0.0184224233,
+    "op_income": 232561000.0,
+    "net_income": 133196000.0,
+    "revenue": 3293281000.0,
+    "net_margin": 0.040444772249923405,
+    "op_margin": 0.07061681040882938,
+    "fcf_ni": 2.7398645604973124,
+    "rev_growth": 0.0439,
+    "eps_growth": 0.2043,
+    "fwd_eps_growth": 0.12889738164469594,
+    "eps_beat": "Y",
+    "fwd_pe": 30.1123838554,
+    "peg": 2.3361517100792955,
+    "ev_ebitda": 58.150401285,
+    "net_debt_ebitda": 4.6877395147,
+    "current_ratio": 1.3295351922,
+    "earnings_date": "2026-05-05",
+    "days_to_earn": 0.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 54.4,
+    "score_prof": 2.2,
+    "score_growth": 3.8,
+    "score_val": 1.7,
+    "score_bs": 2.0,
+    "score_cat": 3.5,
+    "score_opts": 3.3,
+    "composite": 2.59,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "MDB",
+    "company": "MongoDB, Inc.",
+    "roe": 0.0052602022,
+    "roic": 1.29153e-05,
+    "op_income": 50000.0,
+    "net_income": 15530000.0,
+    "revenue": 695072000.0,
+    "net_margin": 0.022343009069564015,
+    "op_margin": 7.193499378481654e-05,
+    "fcf_ni": 11.491951062459755,
+    "rev_growth": 0.1063,
+    "eps_growth": 8.6923,
+    "fwd_eps_growth": 0.22512796552977205,
+    "eps_beat": "Y",
+    "fwd_pe": 485.8717238384,
+    "peg": 21.58202436978652,
+    "ev_ebitda": 1114.6185523737,
+    "net_debt_ebitda": -40.2005280073,
+    "current_ratio": 4.6525371324,
+    "earnings_date": "2026-06-04",
+    "days_to_earn": 30.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 55.4,
+    "score_prof": 1.8,
+    "score_growth": 4.8,
+    "score_val": 1.0,
+    "score_bs": 5.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.35,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "TTAN",
+    "company": "ServiceTitan, Inc.",
+    "roe": -0.0273643257,
+    "roic": -0.0268215093,
+    "op_income": -42637000.0,
+    "net_income": -41737000.0,
+    "revenue": 253987000.0,
+    "net_margin": -0.16432730809057156,
+    "op_margin": -0.16787079653683062,
+    "fcf_ni": -0.8483120492608477,
+    "rev_growth": 0.0194,
+    "eps_growth": -0.0233,
+    "fwd_eps_growth": 0.37462478559176665,
+    "eps_beat": "N",
+    "fwd_pe": -44.1623285095,
+    "peg": -1.1788416092047962,
+    "ev_ebitda": -351.1932034741,
+    "net_debt_ebitda": 18.9464832572,
+    "current_ratio": 3.4868753393,
+    "earnings_date": "2026-06-11",
+    "days_to_earn": 37.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 56.4,
+    "score_prof": 1.0,
+    "score_growth": 2.5,
+    "score_val": 5.0,
+    "score_bs": 3.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 2.98,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "GRND",
+    "company": "Grindr Inc.",
+    "roe": 0.4310088074,
+    "roic": 0.0526822178,
+    "op_income": 31309000.0,
+    "net_income": 20260000.0,
+    "revenue": 125974000.0,
+    "net_margin": 0.16082683728388397,
+    "op_margin": 0.24853541206915714,
+    "fcf_ni": 1.148971865745311,
+    "rev_growth": 0.0882,
+    "eps_growth": -0.3125,
+    "fwd_eps_growth": 0.2883720930232559,
+    "eps_beat": "N",
+    "fwd_pe": 30.8569649556,
+    "peg": 1.0700399137829029,
+    "ev_ebitda": 86.8144239845,
+    "net_debt_ebitda": 9.6839085778,
+    "current_ratio": 1.9001801632,
+    "earnings_date": "2026-05-07",
+    "days_to_earn": 2.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 57.4,
+    "score_prof": 4.0,
+    "score_growth": 2.8,
+    "score_val": 2.3,
+    "score_bs": 2.5,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": 3.06,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "LKNCY",
+    "company": "Luckin Coffee Inc.",
+    "roe": 0.0310943498,
+    "roic": 0.0189521465,
+    "op_income": 737968000.0,
+    "net_income": 506144000.0,
+    "revenue": 11995482000.0,
+    "net_margin": 0.04219455291583948,
+    "op_margin": 0.06152049580000203,
+    "fcf_ni": 0.0,
+    "rev_growth": -0.048,
+    "eps_growth": -0.0062,
+    "fwd_eps_growth": 0.2783848220686665,
+    "eps_beat": "N",
+    "fwd_pe": 4.4251895261,
+    "peg": 0.15895943942692684,
+    "ev_ebitda": 9.9434192216,
+    "net_debt_ebitda": 2.6203366002,
+    "current_ratio": 1.6695580153,
+    "earnings_date": "2026-07-29",
+    "days_to_earn": 85.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 58.4,
+    "score_prof": 1.4,
+    "score_growth": 2.3,
+    "score_val": 5.0,
+    "score_bs": 3.5,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.13,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "PAYC",
+    "company": "Paycom Software, Inc.",
+    "roe": 0.0657233612,
+    "roic": 0.0497500118,
+    "op_income": 157200000.0,
+    "net_income": 113800000.0,
+    "revenue": 544300000.0,
+    "net_margin": 0.20907587727356236,
+    "op_margin": 0.28881131728826015,
+    "fcf_ni": 1.077328646748682,
+    "rev_growth": 0.1034,
+    "eps_growth": 0.0508,
+    "fwd_eps_growth": 0.11166084936146067,
+    "eps_beat": "Y",
+    "fwd_pe": 19.2198242531,
+    "peg": 1.7212679612424346,
+    "ev_ebitda": 40.7405157593,
+    "net_debt_ebitda": -1.0401146132,
+    "current_ratio": 1.087623873,
+    "earnings_date": "2026-05-06",
+    "days_to_earn": 1.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 59.4,
+    "score_prof": 3.6,
+    "score_growth": 4.0,
+    "score_val": 2.7,
+    "score_bs": 4.0,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": 3.64,
+    "verdict": "Buy",
+    "sizing": "Half size \u2014 ITM call preferred",
+    "period": ""
+  },
+  {
+    "ticker": "MAA",
+    "company": "Mid-America Apartment Communities, Inc.",
+    "roe": 0.0223714584,
+    "roic": 0.0117509612,
+    "op_income": 147106000.0,
+    "net_income": 124359000.0,
+    "revenue": 553725000.0,
+    "net_margin": 0.22458621156711364,
+    "op_margin": 0.26566617003024967,
+    "fcf_ni": 0.12881255076029882,
+    "rev_growth": -0.0033,
+    "eps_growth": 1.2083,
+    "fwd_eps_growth": -0.011487683262632933,
+    "eps_beat": "Y",
+    "fwd_pe": 28.5885805594,
+    "peg": -24.88628899822888,
+    "ev_ebitda": 64.0236139531,
+    "net_debt_ebitda": 18.0227303604,
+    "current_ratio": 0.0,
+    "earnings_date": "2026-07-29",
+    "days_to_earn": 85.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 60.4,
+    "score_prof": 2.6,
+    "score_growth": 3.0,
+    "score_val": 2.7,
+    "score_bs": 1.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 2.64,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "WIX",
+    "company": "Wix.com Ltd.",
+    "roe": 0.109928361,
+    "roic": -0.0308323647,
+    "op_income": -72588000.0,
+    "net_income": -40234000.0,
+    "revenue": 524269000.0,
+    "net_margin": -0.07674304603171272,
+    "op_margin": -0.1384556401389363,
+    "fcf_ni": -4.2633349903067055,
+    "rev_growth": 0.0378,
+    "eps_growth": -67.8679,
+    "fwd_eps_growth": 0.3122449047588904,
+    "eps_beat": "N",
+    "fwd_pe": -35.4689456191,
+    "peg": -1.1359335277700833,
+    "ev_ebitda": -109.7341404846,
+    "net_debt_ebitda": -20.0356862252,
+    "current_ratio": 1.1899527349,
+    "earnings_date": "2026-05-13",
+    "days_to_earn": 8.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 61.4,
+    "score_prof": 1.4,
+    "score_growth": 2.5,
+    "score_val": 5.0,
+    "score_bs": 4.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.28,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "GWRE",
+    "company": "Guidewire Software, Inc.",
+    "roe": 0.0397916614,
+    "roic": 0.0140430229,
+    "op_income": 38888000.0,
+    "net_income": 60110000.0,
+    "revenue": 359095000.0,
+    "net_margin": 0.16739302969966166,
+    "op_margin": 0.1082944624681491,
+    "fcf_ni": 1.809382798203294,
+    "rev_growth": 0.0795,
+    "eps_growth": 0.9189,
+    "fwd_eps_growth": 0.21167235494880535,
+    "eps_beat": "Y",
+    "fwd_pe": 49.6554199983,
+    "peg": 2.3458623120770565,
+    "ev_ebitda": 224.8061580819,
+    "net_debt_ebitda": 5.4574683079,
+    "current_ratio": 2.9329800886,
+    "earnings_date": "2026-06-02",
+    "days_to_earn": 28.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 62.4,
+    "score_prof": 2.8,
+    "score_growth": 4.5,
+    "score_val": 1.3,
+    "score_bs": 3.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.19,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "SEZL",
+    "company": "Sezzle Inc.",
+    "roe": 0.2514030304,
+    "roic": 0.1472805579,
+    "op_income": 55247000.0,
+    "net_income": 42691000.0,
+    "revenue": 129869000.0,
+    "net_margin": 0.3287235598949711,
+    "op_margin": 0.42540560102872893,
+    "fcf_ni": 3.612658405752969,
+    "rev_growth": 0.1119,
+    "eps_growth": 0.6154,
+    "fwd_eps_growth": 0.2743567037346093,
+    "eps_beat": "Y",
+    "fwd_pe": 12.6057412569,
+    "peg": 0.45946539979915285,
+    "ev_ebitda": 40.0676684161,
+    "net_debt_ebitda": 1.3767704364,
+    "current_ratio": 3.9197914578,
+    "earnings_date": "2026-05-06",
+    "days_to_earn": 1.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 63.4,
+    "score_prof": 4.8,
+    "score_growth": 4.8,
+    "score_val": 3.7,
+    "score_bs": 4.5,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": 4.44,
+    "verdict": "Strong Buy",
+    "sizing": "Full size \u2014 stock or ITM call",
+    "period": ""
+  },
+  {
+    "ticker": "PCTY",
+    "company": "Paylocity Holding Corporation",
+    "roe": 0.045703646,
+    "roic": 0.0387589123,
+    "op_income": 70600000.0,
+    "net_income": 50197000.0,
+    "revenue": 416134000.0,
+    "net_margin": 0.12062700956903305,
+    "op_margin": 0.16965688936736725,
+    "fcf_ni": 2.2638006255353904,
+    "rev_growth": 0.0195,
+    "eps_growth": 0.069,
+    "fwd_eps_growth": 0.07476457449616053,
+    "eps_beat": "Y",
+    "fwd_pe": 41.4311363229,
+    "peg": 5.541546461289319,
+    "ev_ebitda": 85.0571443152,
+    "net_debt_ebitda": 0.1533374158,
+    "current_ratio": 0.0675761449,
+    "earnings_date": "2026-05-07",
+    "days_to_earn": 2.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 64.4,
+    "score_prof": 3.0,
+    "score_growth": 3.3,
+    "score_val": 1.0,
+    "score_bs": 3.0,
+    "score_cat": 4.0,
+    "score_opts": 3.3,
+    "composite": 2.78,
+    "verdict": "Pass",
+    "sizing": "Skip",
+    "period": ""
+  },
+  {
+    "ticker": "PI",
+    "company": "Impinj, Inc.",
+    "roe": -0.1238855159,
+    "roic": -0.0321666013,
+    "op_income": -15168000.0,
+    "net_income": -25261000.0,
+    "revenue": 74250000.0,
+    "net_margin": -0.3402154882154882,
+    "op_margin": -0.2042828282828283,
+    "fcf_ni": -0.08839713392185583,
+    "rev_growth": -0.2003,
+    "eps_growth": -20.9577,
+    "fwd_eps_growth": 0.49899547164997754,
+    "eps_beat": "N",
+    "fwd_pe": -30.7884525553,
+    "peg": -0.6170086564812894,
+    "ev_ebitda": -158.3895788925,
+    "net_debt_ebitda": -11.0261948747,
+    "current_ratio": 9.2011692308,
+    "earnings_date": "2026-07-29",
+    "days_to_earn": 85.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 65.4,
+    "score_prof": 1.0,
+    "score_growth": 2.3,
+    "score_val": 5.0,
+    "score_bs": 5.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.33,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "CVLT",
+    "company": "Commvault Systems, Inc.",
+    "roe": 1.954763811,
+    "roic": 0.018081036,
+    "op_income": 35241000.0,
+    "net_income": 14649000.0,
+    "revenue": 311692000.0,
+    "net_margin": 0.0469983188532269,
+    "op_margin": 0.11306353708147787,
+    "fcf_ni": 9.0,
+    "rev_growth": -0.0068,
+    "eps_growth": -0.15,
+    "fwd_eps_growth": 0.25308497363249965,
+    "eps_beat": "N",
+    "fwd_pe": 57.2211555396,
+    "peg": 2.2609463816958906,
+    "ev_ebitda": 89.1557726696,
+    "net_debt_ebitda": 0.4632843085,
+    "current_ratio": 1.954677363,
+    "earnings_date": "2026-07-28",
+    "days_to_earn": 84.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 66.4,
+    "score_prof": 3.2,
+    "score_growth": 2.3,
+    "score_val": 1.3,
+    "score_bs": 4.5,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 3.04,
+    "verdict": "Hold/Watch",
+    "sizing": "Quarter size or wait",
+    "period": ""
+  },
+  {
+    "ticker": "LIF",
+    "company": "Life360, Inc.",
+    "roe": 0.2365181637,
+    "roic": 0.010376661,
+    "op_income": 8954000.0,
+    "net_income": 129655000.0,
+    "revenue": 145979000.0,
+    "net_margin": 0.8881756965042917,
+    "op_margin": 0.061337589653306296,
+    "fcf_ni": 0.27129690332035017,
+    "rev_growth": 0.1726,
+    "eps_growth": 11.8462,
+    "fwd_eps_growth": 0.5640421026504191,
+    "eps_beat": "Y",
+    "fwd_pe": 9.5539980515,
+    "peg": 0.1693844840058218,
+    "ev_ebitda": 313.4703987819,
+    "net_debt_ebitda": -12.0811432326,
+    "current_ratio": 6.2620518649,
+    "earnings_date": "2026-05-11",
+    "days_to_earn": 6.0,
+    "iv_rank": 40.0,
+    "open_interest": 9000.0,
+    "bid_ask": 67.4,
+    "score_prof": 2.8,
+    "score_growth": 4.8,
+    "score_val": 3.7,
+    "score_bs": 5.0,
+    "score_cat": 5.0,
+    "score_opts": 3.3,
+    "composite": 4.14,
+    "verdict": "Strong Buy",
+    "sizing": "Full size \u2014 stock or ITM call",
+    "period": ""
+  }
+];
+
+const COLS = [
+  { key: "ticker",          label: "Ticker",        fmt: "ticker" },
+  { key: "company",         label: "Company",       fmt: "company" },
+  { key: "roe",             label: "ROE %",         fmt: "pct1" },
+  { key: "roic",            label: "ROIC %",        fmt: "pct1" },
+  { key: "net_margin",      label: "Net Mgn %",     fmt: "pct1" },
+  { key: "op_margin",       label: "Op Mgn %",      fmt: "pct1" },
+  { key: "fcf_ni",          label: "FCF/NI",        fmt: "x2" },
+  { key: "revenue",         label: "Revenue",       fmt: "mil" },
+  { key: "rev_growth",      label: "Rev Grw%",      fmt: "pct1" },
+  { key: "eps_growth",      label: "EPS Grw%",      fmt: "pct1" },
+  { key: "fwd_eps_growth",  label: "Fwd EPS Grw%",  fmt: "pct1" },
+  { key: "eps_beat",        label: "EPS Beat?",     fmt: "beat" },
+  { key: "fwd_pe",          label: "Fwd P/E",       fmt: "x1" },
+  { key: "peg",             label: "PEG",           fmt: "x2" },
+  { key: "ev_ebitda",       label: "EV/EBITDA",     fmt: "x1" },
+  { key: "net_debt_ebitda", label: "ND/EBITDA",     fmt: "x1" },
+  { key: "current_ratio",   label: "Cur Ratio",     fmt: "x2" },
+  { key: "days_to_earn",    label: "Days→Earn",     fmt: "int" },
+  { key: "iv_rank",         label: "IV Rank%",      fmt: "int" },
+  { key: "open_interest",   label: "OI (K)",        fmt: "int" },
+  { key: "bid_ask",         label: "Bid-Ask%",      fmt: "x2" },
+  { key: "score_prof",      label: "Profit",        fmt: "score" },
+  { key: "score_growth",    label: "Growth",        fmt: "score" },
+  { key: "score_val",       label: "Val",           fmt: "score" },
+  { key: "score_bs",        label: "B/S",           fmt: "score" },
+  { key: "score_cat",       label: "Cat",           fmt: "score" },
+  { key: "score_opts",      label: "Opts",          fmt: "score" },
+  { key: "composite",       label: "Composite",     fmt: "composite" },
+  { key: "verdict",         label: "Verdict",       fmt: "verdict" },
+  { key: "sizing",          label: "Sizing",        fmt: "text" },
+];
+
+let sortKey = "composite", sortAsc = false, activeFilter = "All", searchQ = "";
+
+// ── Formatters ───────────────────────────────────────────────────────────────
+
+function scoreColor(s) {
+  if (s == null) return "#666";
+  if (s >= 4.5) return "#22c55e";
+  if (s >= 3.5) return "#86efac";
+  if (s >= 2.5) return "#eab308";
+  if (s >= 1.5) return "#f97316";
+  return "#ef4444";
+}
+
+function compositeColor(v) {
+  if (v == null) return "#666";
+  if (v >= 4.0) return "#22c55e";
+  if (v >= 3.5) return "#86efac";
+  if (v >= 3.0) return "#eab308";
+  if (v >= 2.0) return "#f97316";
+  return "#ef4444";
+}
+
+function fmtNum(v, decimals) {
+  if (v == null || isNaN(v)) return '<span class="na">—</span>';
+  return (v >= 0 ? "" : "") + v.toFixed(decimals);
+}
+
+function fmtPct(v) {
+  if (v == null || isNaN(v)) return '<span class="na">—</span>';
+  const pct = (v * 100).toFixed(1);
+  const color = v >= 0 ? "#86efac" : "#f87171";
+  return `<span style="color:${color}">${pct}%</span>`;
+}
+
+function fmtMil(v) {
+  if (v == null || isNaN(v)) return '<span class="na">—</span>';
+  const abs = Math.abs(v), sign = v < 0 ? "-" : "";
+  if (abs >= 1e9) return `<span class="fmt-million">${sign}$${(abs/1e9).toFixed(1)}B</span>`;
+  if (abs >= 1e6) return `<span class="fmt-million">${sign}$${(abs/1e6).toFixed(0)}M</span>`;
+  return `<span class="fmt-million">${sign}$${abs.toFixed(0)}</span>`;
+}
+
+function fmtScore(s) {
+  if (s == null) return '<span class="na">—</span>';
+  const pct = ((s - 1) / 4) * 100;
+  const col = scoreColor(s);
+  return `<div class="score-bar-wrap">
+    <div class="score-bar"><div class="score-bar-fill" style="width:${pct}%;background:${col}"></div></div>
+    <span class="score-num" style="color:${col}">${s.toFixed(1)}</span>
+  </div>`;
+}
+
+function fmtComposite(v) {
+  if (v == null) return '<span class="na">—</span>';
+  const col = compositeColor(v);
+  return `<span class="composite-pill" style="background:${col}22;color:${col};border:1px solid ${col}44">${v.toFixed(2)}</span>`;
+}
+
+function fmtVerdict(v) {
+  const cls = { "Strong Buy": "v-strong-buy", "Buy": "v-buy", "Hold/Watch": "v-hold", "Pass": "v-pass" }[v] || "v-pass";
+  return `<span class="verdict-badge ${cls}">${v || "—"}</span>`;
+}
+
+function fmtBeat(v) {
+  if (!v) return '<span class="na">—</span>';
+  if (v === "Y") return '<span class="eps-beat-y">✓ Y</span>';
+  if (v === "N") return '<span class="eps-beat-n">✗ N</span>';
+  return v;
+}
+
+function formatCell(key, fmt, val) {
+  switch (fmt) {
+    case "ticker":    return `<span class="ticker">${val||"—"}</span>`;
+    case "company":   return `<span class="company" title="${val||""}">${val||"—"}</span>`;
+    case "pct1":      return fmtPct(val);
+    case "x1":        return fmtNum(val, 1);
+    case "x2":        return fmtNum(val, 2);
+    case "int":       return val != null ? Math.round(val).toString() : '<span class="na">—</span>';
+    case "mil":       return fmtMil(val);
+    case "score":     return fmtScore(val);
+    case "composite": return fmtComposite(val);
+    case "verdict":   return fmtVerdict(val);
+    case "beat":      return fmtBeat(val);
+    case "text":      return `<span style="font-size:11px;color:#8892aa">${val||"—"}</span>`;
+    default:          return val != null ? val : '<span class="na">—</span>';
+  }
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+
+function buildHeaders() {
+  const tr = document.getElementById("col-headers");
+  COLS.forEach(col => {
+    const th = document.createElement("th");
+    const icon = col.key === sortKey ? (sortAsc ? " ▲" : " ▼") : ' <span style="opacity:0.3">⇅</span>';
+    th.innerHTML = col.label + `<span class="sort-icon">${icon}</span>`;
+    th.dataset.key = col.key;
+    th.addEventListener("click", () => {
+      if (sortKey === col.key) sortAsc = !sortAsc;
+      else { sortKey = col.key; sortAsc = false; }
+      render();
+    });
+    tr.appendChild(th);
+  });
+}
+
+function filtered() {
+  return STOCKS.filter(s => {
+    if (activeFilter !== "All" && s.verdict !== activeFilter) return false;
+    if (searchQ) {
+      const q = searchQ.toLowerCase();
+      if (!s.ticker.toLowerCase().includes(q) && !s.company.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function sorted(arr) {
+  return [...arr].sort((a, b) => {
+    let va = a[sortKey], vb = b[sortKey];
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    if (typeof va === "string") return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+    return sortAsc ? va - vb : vb - va;
+  });
+}
+
+function render() {
+  // Update header icons
+  const tr = document.getElementById("col-headers");
+  tr.innerHTML = "";
+  buildHeaderCells();
+
+  const rows = sorted(filtered());
+  document.getElementById("count-badge").textContent = `${rows.length} of ${STOCKS.length} stocks`;
+
+  const tbody = document.getElementById("table-body");
+  tbody.innerHTML = rows.map(s => {
+    const cells = COLS.map(col => `<td class="${col.fmt === 'num' ? 'num' : ''}">${formatCell(col.key, col.fmt, s[col.key])}</td>`).join("");
+    return `<tr onclick="showDetail('${s.ticker}')" style="cursor:pointer">${cells}</tr>`;
+  }).join("");
+}
+
+function buildHeaderCells() {
+  const tr = document.getElementById("col-headers");
+  COLS.forEach(col => {
+    const th = document.createElement("th");
+    const isCurrent = col.key === sortKey;
+    const icon = isCurrent ? (sortAsc ? " ▲" : " ▼") : ' <span style="opacity:0.3">⇅</span>';
+    th.innerHTML = col.label + `<span class="sort-icon">${icon}</span>`;
+    th.dataset.key = col.key;
+    th.style.color = isCurrent ? "var(--accent)" : "";
+    th.addEventListener("click", () => {
+      if (sortKey === col.key) sortAsc = !sortAsc;
+      else { sortKey = col.key; sortAsc = false; }
+      render();
+    });
+    tr.appendChild(th);
+  });
+}
+
+// ── Weights sidebar ──────────────────────────────────────────────────────────
+
+function buildWeights() {
+  const container = document.getElementById("weights-list");
+  const cats = ["Profitability", "Growth", "Valuation", "Balance Sheet", "Catalysts", "Options Setup"];
+  cats.forEach(cat => {
+    const wt = WEIGHTS[cat] || 0;
+    container.innerHTML += `
+      <div style="padding:6px 0; border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px">${cat}</span>
+          <span style="font-size:12px;font-weight:600;color:var(--accent)">${wt}%</span>
+        </div>
+        <div class="weight-bar"><div class="weight-bar-fill" style="width:${wt}%"></div></div>
+      </div>`;
+  });
+}
+
+// ── Detail panel ─────────────────────────────────────────────────────────────
+
+function showDetail(ticker) {
+  const s = STOCKS.find(x => x.ticker === ticker);
+  if (!s) return;
+  const col = compositeColor(s.composite);
+  const scores = [
+    { label: "Profitability", key: "score_prof", wt: WEIGHTS["Profitability"] },
+    { label: "Growth",        key: "score_growth", wt: WEIGHTS["Growth"] },
+    { label: "Valuation",     key: "score_val",  wt: WEIGHTS["Valuation"] },
+    { label: "Balance Sheet", key: "score_bs",   wt: WEIGHTS["Balance Sheet"] },
+    { label: "Catalysts",     key: "score_cat",  wt: WEIGHTS["Catalysts"] },
+    { label: "Options",       key: "score_opts", wt: WEIGHTS["Options Setup"] },
+  ];
+  const scoreBars = scores.map(sc => {
+    const v = s[sc.key];
+    const pct = v != null ? ((v - 1) / 4) * 100 : 0;
+    const c = scoreColor(v);
+    return `<div class="detail-score-row">
+      <span class="detail-score-label">${sc.label} <span style="color:var(--muted);font-size:10px">(${sc.wt}%)</span></span>
+      <div class="detail-score-bar"><div class="detail-score-fill" style="width:${pct}%;background:${c}"></div></div>
+      <span class="detail-score-num" style="color:${c}">${v != null ? v.toFixed(1) : "—"}</span>
+    </div>`;
+  }).join("");
+
+  function field(label, val) {
+    return `<div class="detail-field"><div class="label">${label}</div><div class="value">${val}</div></div>`;
+  }
+  function pct(v) { return v != null ? (v*100).toFixed(1)+"%" : "—"; }
+  function x1(v)  { return v != null ? v.toFixed(1) : "—"; }
+  function x2(v)  { return v != null ? v.toFixed(2) : "—"; }
+
+  document.getElementById("detail-content").innerHTML = `
+    <div class="detail-ticker">${s.ticker}</div>
+    <div class="detail-company">${s.company}</div>
+    <div style="margin-bottom:16px">${fmtVerdict(s.verdict)} &nbsp; ${fmtComposite(s.composite)}</div>
+    <div class="detail-section">
+      <h3>Scoring Breakdown</h3>
+      <div class="detail-scores">${scoreBars}</div>
+    </div>
+    <div class="detail-section">
+      <h3>Profitability</h3>
+      <div class="detail-grid">
+        ${field("ROE %", pct(s.roe))}
+        ${field("ROIC %", pct(s.roic))}
+        ${field("Net Margin %", pct(s.net_margin))}
+        ${field("Op Margin %", pct(s.op_margin))}
+        ${field("FCF / NI", x2(s.fcf_ni))}
+        ${field("Revenue", s.revenue != null ? "$"+(s.revenue/1e9).toFixed(2)+"B" : "—")}
+      </div>
+    </div>
+    <div class="detail-section">
+      <h3>Growth</h3>
+      <div class="detail-grid">
+        ${field("Rev Growth YoY", pct(s.rev_growth))}
+        ${field("EPS Growth YoY", pct(s.eps_growth))}
+        ${field("Fwd EPS Growth", pct(s.fwd_eps_growth))}
+        ${field("Last EPS Beat?", s.eps_beat || "—")}
+      </div>
+    </div>
+    <div class="detail-section">
+      <h3>Valuation</h3>
+      <div class="detail-grid">
+        ${field("Fwd P/E", x1(s.fwd_pe))}
+        ${field("PEG", x2(s.peg))}
+        ${field("EV/EBITDA", x1(s.ev_ebitda))}
+      </div>
+    </div>
+    <div class="detail-section">
+      <h3>Balance Sheet</h3>
+      <div class="detail-grid">
+        ${field("Net Debt/EBITDA", x1(s.net_debt_ebitda))}
+        ${field("Current Ratio", x2(s.current_ratio))}
+      </div>
+    </div>
+    <div class="detail-section">
+      <h3>Catalysts &amp; Options</h3>
+      <div class="detail-grid">
+        ${field("Earnings Date", s.earnings_date || "—")}
+        ${field("Days to Earn", s.days_to_earn != null ? Math.round(s.days_to_earn)+"d" : "—")}
+        ${field("IV Rank %", s.iv_rank != null ? Math.round(s.iv_rank)+"%" : "—")}
+        ${field("Open Interest", s.open_interest != null ? Math.round(s.open_interest)+"K" : "—")}
+        ${field("Bid-Ask Spread", s.bid_ask != null ? s.bid_ask.toFixed(2)+"%" : "—")}
+      </div>
+    </div>
+    <div class="detail-section">
+      <h3>Trade Recommendation</h3>
+      <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;font-size:12px;color:var(--text)">${s.sizing || "—"}</div>
+    </div>
+  `;
+  document.getElementById("detail-panel").classList.add("open");
+}
+
+function closeDetail() {
+  document.getElementById("detail-panel").classList.remove("open");
+}
+
+// ── Filter buttons ───────────────────────────────────────────────────────────
+
+document.querySelectorAll(".filter-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    activeFilter = btn.dataset.filter;
+    render();
+  });
+});
+
+document.getElementById("search").addEventListener("input", e => {
+  searchQ = e.target.value.trim();
+  render();
+});
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+
+buildWeights();
+buildHeaderCells();
+render();
+document.getElementById("count-badge").textContent = `${STOCKS.length} of ${STOCKS.length} stocks`;
+</script>
+</body>
+</html>
