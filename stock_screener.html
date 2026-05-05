@@ -106,6 +106,10 @@
   .tv-chart-wrap .tradingview-widget-container { height: 100%; width: 100%; }
   .tv-chart-wrap .tradingview-widget-container__widget { height: calc(100% - 32px); width: 100%; }
   .tv-chart-wrap .tradingview-widget-copyright { font-size: 11px; padding: 4px 8px; }
+  /* profile widget */
+  .detail-section .tradingview-widget-container { width: 100%; }
+  .detail-section .tradingview-widget-container__widget { min-height: 400px; }
+  .detail-section .tradingview-widget-copyright { font-size: 11px; color: var(--muted); padding: 4px 0; }
   /* ── Scrollable detail body ── */
   .detail-body { flex: 1; overflow-y: auto; padding: 16px; }
   .detail-section { margin-bottom: 16px; }
@@ -3097,8 +3101,40 @@ function showDetail(ticker) {
   tvContainer.appendChild(tvScript);
   chartWrap.appendChild(tvContainer);
 
-  // Scrollable body
-  document.getElementById("detail-content").innerHTML = `
+  // Company profile widget — injected via DOM so script executes
+  const detailBody = document.getElementById("detail-content");
+  detailBody.innerHTML = "";
+
+  const profileWrap = document.createElement("div");
+  profileWrap.className = "detail-section";
+  profileWrap.innerHTML = `<h3>Company Profile</h3>`;
+  const profileContainer = document.createElement("div");
+  profileContainer.className = "tradingview-widget-container";
+  const profileWidget = document.createElement("div");
+  profileWidget.className = "tradingview-widget-container__widget";
+  const profileCopyright = document.createElement("div");
+  profileCopyright.className = "tradingview-widget-copyright";
+  profileCopyright.innerHTML = `<a href="https://www.tradingview.com/symbols/${encodeURIComponent(s.ticker)}/" rel="noopener nofollow" target="_blank"><span class="blue-text">${s.ticker} key facts</span></a><span> by TradingView</span>`;
+  const profileScript = document.createElement("script");
+  profileScript.type = "text/javascript";
+  profileScript.src = "https://s3.tradingview.com/external-embedding/embed-widget-symbol-profile.js";
+  profileScript.async = true;
+  profileScript.textContent = JSON.stringify({
+    symbol: s.ticker,
+    colorTheme: "dark",
+    isTransparent: true,
+    locale: "en",
+    autosize: true
+  });
+  profileContainer.appendChild(profileWidget);
+  profileContainer.appendChild(profileCopyright);
+  profileContainer.appendChild(profileScript);
+  profileWrap.appendChild(profileContainer);
+  detailBody.appendChild(profileWrap);
+
+  // Remaining fundamentals via innerHTML
+  const fundsDiv = document.createElement("div");
+  fundsDiv.innerHTML = `
     <div class="detail-section">
       <h3>Scoring Breakdown</h3>
       <div class="detail-scores">${scoreBars}</div>
@@ -3153,6 +3189,7 @@ function showDetail(ticker) {
       <div style="background:var(--surface2);border-radius:6px;padding:10px 12px;font-size:12px;color:var(--text)">${s.sizing || "—"}</div>
     </div>
   `;
+  detailBody.appendChild(fundsDiv);
   document.getElementById("detail-panel").classList.add("open");
 }
 
