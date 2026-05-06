@@ -154,14 +154,16 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   .layout { display: flex; height: calc(100vh - 55px); overflow: hidden; }
   .sidebar { width: 240px; min-width: 200px; background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; padding: 16px 14px; flex-shrink: 0; }
   .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  /* Table + TV panel split */
-  .content-split { flex: 1; display: flex; overflow: hidden; }
-  .table-col { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
-  .tv-col { width: 420px; flex-shrink: 0; display: flex; flex-direction: column; border-left: 1px solid var(--border); background: var(--surface); }
-  .tv-col-header { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 600; color: var(--muted); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
-  .tv-col-ticker { color: var(--accent); font-size: 13px; font-weight: 700; }
-  .tv-chart-embed { flex: 0 0 55%; border-bottom: 1px solid var(--border); background: #fff; }
-  .tv-profile-embed { flex: 1; overflow: hidden; background: #fff; }
+  /* Top half: table */
+  .table-section { flex: 0 0 50%; display: flex; flex-direction: column; overflow: hidden; border-bottom: 2px solid var(--border); }
+  /* Bottom half: widgets side by side */
+  .widgets-section { flex: 0 0 50%; display: flex; overflow: hidden; }
+  .tv-widgets-header { padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 11px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 8px; flex-shrink: 0; background: var(--surface); }
+  .tv-col-ticker { color: var(--accent); font-weight: 700; }
+  .tv-profile-embed { flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--border); overflow: hidden; background: #fff; }
+  .tv-chart-embed  { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #fff; }
+  .tv-embed-label { padding: 5px 10px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); background: var(--surface2); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .tv-embed-body  { flex: 1; overflow: hidden; }
   .tv-placeholder { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); font-size: 12px; }
 
   /* ── Sidebar ── */
@@ -290,50 +292,50 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 
   <!-- Main area -->
   <div class="main">
-    <div class="content-split">
-      <!-- Table column -->
-      <div class="table-col">
-        <div class="controls">
-          <input class="search-box" id="search" placeholder="Search ticker or company…" />
-          <button class="filter-btn active" data-filter="All">All</button>
-          <button class="filter-btn" data-filter="Strong Buy">Strong Buy</button>
-          <button class="filter-btn" data-filter="Buy">Buy</button>
-          <button class="filter-btn" data-filter="Hold/Watch">Hold</button>
-          <button class="filter-btn" data-filter="Pass">Pass</button>
-          <span class="count-badge" id="count-badge"></span>
-        </div>
-        <div class="table-wrap">
-          <table id="main-table">
-            <thead>
-              <tr>
-                <th colspan="2">Identity</th>
-                <th colspan="6">Profitability</th>
-                <th colspan="4">Growth</th>
-                <th colspan="3">Valuation</th>
-                <th colspan="2">Balance Sheet</th>
-                <th colspan="2">Catalysts</th>
-                <th colspan="3">Options Setup</th>
-                <th colspan="6">Category Scores</th>
-                <th colspan="3">Output</th>
-              </tr>
-              <tr id="col-headers"></tr>
-            </thead>
-            <tbody id="table-body"></tbody>
-          </table>
+    <!-- Top 50%: table -->
+    <div class="table-section">
+      <div class="controls">
+        <input class="search-box" id="search" placeholder="Search ticker or company…" />
+        <button class="filter-btn active" data-filter="All">All</button>
+        <button class="filter-btn" data-filter="Strong Buy">Strong Buy</button>
+        <button class="filter-btn" data-filter="Buy">Buy</button>
+        <button class="filter-btn" data-filter="Hold/Watch">Hold</button>
+        <button class="filter-btn" data-filter="Pass">Pass</button>
+        <span class="count-badge" id="count-badge"></span>
+      </div>
+      <div class="table-wrap">
+        <table id="main-table">
+          <thead>
+            <tr>
+              <th colspan="2">Identity</th>
+              <th colspan="6">Profitability</th>
+              <th colspan="4">Growth</th>
+              <th colspan="3">Valuation</th>
+              <th colspan="2">Balance Sheet</th>
+              <th colspan="2">Catalysts</th>
+              <th colspan="3">Options Setup</th>
+              <th colspan="6">Category Scores</th>
+              <th colspan="3">Output</th>
+            </tr>
+            <tr id="col-headers"></tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Bottom 50%: profile (left) | chart (right) -->
+    <div class="widgets-section">
+      <div class="tv-profile-embed" id="tv-profile-embed">
+        <div class="tv-embed-label">Company Profile &nbsp;<span class="tv-col-ticker" id="tv-col-ticker">— select a stock —</span></div>
+        <div class="tv-embed-body" id="tv-profile-body">
+          <div class="tv-placeholder">Click a row to load profile</div>
         </div>
       </div>
-
-      <!-- Embedded TradingView column -->
-      <div class="tv-col">
-        <div class="tv-col-header">
-          <span>TradingView</span>
-          <span class="tv-col-ticker" id="tv-col-ticker">— select a stock —</span>
-        </div>
-        <div class="tv-chart-embed" id="tv-chart-embed">
+      <div class="tv-chart-embed" id="tv-chart-embed">
+        <div class="tv-embed-label">Chart</div>
+        <div class="tv-embed-body" id="tv-chart-body">
           <div class="tv-placeholder">Click a row to load chart</div>
-        </div>
-        <div class="tv-profile-embed" id="tv-profile-embed">
-          <div class="tv-placeholder">Click a row to load profile</div>
         </div>
       </div>
     </div>
@@ -679,7 +681,7 @@ function loadEmbeddedWidgets(ticker) {
   document.getElementById("tv-col-ticker").textContent = ticker;
 
   // Chart
-  const chartEl = document.getElementById("tv-chart-embed");
+  const chartEl = document.getElementById("tv-chart-body");
   chartEl.innerHTML = "";
   const cContainer = document.createElement("div");
   cContainer.className = "tradingview-widget-container";
@@ -705,7 +707,7 @@ function loadEmbeddedWidgets(ticker) {
   chartEl.appendChild(cContainer);
 
   // Profile
-  const profEl = document.getElementById("tv-profile-embed");
+  const profEl = document.getElementById("tv-profile-body");
   profEl.innerHTML = "";
   const pContainer = document.createElement("div");
   pContainer.className = "tradingview-widget-container";
