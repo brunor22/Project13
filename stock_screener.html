@@ -15,8 +15,8 @@
     --accent:   #6366f1;
     --green:    #14532d;
     --yellow:   #ca8a04;
-    --red:      #dc2626;
-    --orange:   #ea580c;
+    --red:      #991b1b;
+    --orange:   #9a3412;
     --blue:     #0284c7;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -99,7 +99,7 @@
   .v-strong-buy { background: rgba(20,83,45,0.1); color: var(--green); border: 1px solid rgba(20,83,45,0.3); }
   .v-buy        { background: rgba(56,189,248,0.15); color: var(--blue); border: 1px solid rgba(56,189,248,0.3); }
   .v-hold       { background: rgba(234,179,8,0.15);  color: var(--yellow); border: 1px solid rgba(234,179,8,0.3); }
-  .v-pass       { background: rgba(239,68,68,0.1);   color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+  .v-pass       { background: rgba(153,27,27,0.08);  color: var(--red); border: 1px solid rgba(153,27,27,0.25); }
 
   .eps-beat-y { color: var(--green); font-weight: 600; }
   .eps-beat-n { color: var(--red); }
@@ -2875,8 +2875,8 @@ function scoreColor(s) {
   if (s >= 4.5) return "#166534";
   if (s >= 3.5) return "#15803d";
   if (s >= 2.5) return "#eab308";
-  if (s >= 1.5) return "#f97316";
-  return "#ef4444";
+  if (s >= 1.5) return "#9a3412";
+  return "#991b1b";
 }
 
 function compositeColor(v) {
@@ -2884,8 +2884,8 @@ function compositeColor(v) {
   if (v >= 4.0) return "#166534";
   if (v >= 3.5) return "#15803d";
   if (v >= 3.0) return "#eab308";
-  if (v >= 2.0) return "#f97316";
-  return "#ef4444";
+  if (v >= 2.0) return "#9a3412";
+  return "#991b1b";
 }
 
 function fmtNum(v, decimals) {
