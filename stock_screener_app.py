@@ -136,7 +136,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     --text:     #1a1d27;
     --muted:    #6b7280;
     --accent:   #6366f1;
-    --green:    #16a34a;
+    --green:    #14532d;
     --yellow:   #ca8a04;
     --red:      #dc2626;
     --orange:   #ea580c;
@@ -219,7 +219,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 
   /* ── Verdict badge ── */
   .verdict-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
-  .v-strong-buy { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .v-strong-buy { background: rgba(20,83,45,0.1); color: var(--green); border: 1px solid rgba(20,83,45,0.3); }
   .v-buy        { background: rgba(56,189,248,0.15); color: var(--blue); border: 1px solid rgba(56,189,248,0.3); }
   .v-hold       { background: rgba(234,179,8,0.15);  color: var(--yellow); border: 1px solid rgba(234,179,8,0.3); }
   .v-pass       { background: rgba(239,68,68,0.1);   color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
@@ -275,7 +275,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     <div class="scale-section">
       <h2 style="margin-top:0">Score Scale</h2>
       <div class="scale-row"><span class="scale-dot" style="background:var(--green)"></span><span>5 — Excellent</span></div>
-      <div class="scale-row"><span class="scale-dot" style="background:#86efac"></span><span>4 — Above avg</span></div>
+      <div class="scale-row"><span class="scale-dot" style="background:#15803d"></span><span>4 — Above avg</span></div>
       <div class="scale-row"><span class="scale-dot" style="background:var(--yellow)"></span><span>3 — Average</span></div>
       <div class="scale-row"><span class="scale-dot" style="background:var(--orange)"></span><span>2 — Below avg</span></div>
       <div class="scale-row"><span class="scale-dot" style="background:var(--red)"></span><span>1 — Poor</span></div>
@@ -394,8 +394,8 @@ let sortKey = "composite", sortAsc = false, activeFilter = "All", searchQ = "";
 
 function scoreColor(s) {
   if (s == null) return "#666";
-  if (s >= 4.5) return "#22c55e";
-  if (s >= 3.5) return "#86efac";
+  if (s >= 4.5) return "#166534";
+  if (s >= 3.5) return "#15803d";
   if (s >= 2.5) return "#eab308";
   if (s >= 1.5) return "#f97316";
   return "#ef4444";
@@ -403,8 +403,8 @@ function scoreColor(s) {
 
 function compositeColor(v) {
   if (v == null) return "#666";
-  if (v >= 4.0) return "#22c55e";
-  if (v >= 3.5) return "#86efac";
+  if (v >= 4.0) return "#166534";
+  if (v >= 3.5) return "#15803d";
   if (v >= 3.0) return "#eab308";
   if (v >= 2.0) return "#f97316";
   return "#ef4444";
@@ -418,7 +418,7 @@ function fmtNum(v, decimals) {
 function fmtPct(v) {
   if (v == null || isNaN(v)) return '<span class="na">—</span>';
   const pct = (v * 100).toFixed(1);
-  const color = v >= 0 ? "#86efac" : "#f87171";
+  const color = v >= 0 ? "#15803d" : "#b91c1c";
   return `<span style="color:${color}">${pct}%</span>`;
 }
 
