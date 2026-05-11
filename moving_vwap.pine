@@ -42,15 +42,27 @@ plot(vwapValue1, title="Moving VWAP", color=lineColor, linewidth=LineWidth)
 // Draws a label at the right edge of the VWAP1 line showing user-defined text
 // and, optionally, the current VWAP1 price.  The label background matches the
 // current trend color so it stays visually consistent with the line.
-var label vwapLabel = na
+var label vwapLabel    = na
+var line  vwapDotLine  = na
 if barstate.islast
     label.delete(vwapLabel)
+    line.delete(vwapDotLine)
+
+    // Dotted bridge: 5 bars from the last bar to the label anchor
+    vwapDotLine := line.new(
+         x1    = bar_index,
+         y1    = vwapValue1,
+         x2    = bar_index + 5,
+         y2    = vwapValue1,
+         color = lineColor,
+         style = line.style_dotted,
+         width = LineWidth)
+
     displayText = showLabelPrice
          ? labelText + "\n" + str.tostring(vwapValue1, format.mintick)
          : labelText
-    labelStyle = lineColor == color.green ? label.style_label_left : label.style_label_left
     vwapLabel := label.new(
-         x      = bar_index,
+         x      = bar_index + 5,
          y      = vwapValue1,
          text   = displayText,
          style  = label.style_label_left,
