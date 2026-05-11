@@ -1,0 +1,117 @@
+//@version=6
+indicator("Moving VWAP", overlay=true)
+
+// Inputs
+cumulativePeriod1 = input.int(14,  title="VWAP Period 1",          minval=1)
+cumulativePeriod2 = input.int(28,  title="VWAP Period 2",          minval=1)
+LineWidth         = input.int(2,   title="Line Width",              minval=1)
+maxCrossLines     = input.int(1,   title="Crossover Lines to Show", minval=1, maxval=20)
+lineOffset        = input.float(0.0, title="Cross Line Price Offset", step=0.01)
+
+// Label inputs
+labelText         = input.string("MVWAP",  title="Label Text")
+labelSize         = input.string("normal", title="Label Size",  options=["tiny", "small", "normal", "large", "huge"])
+labelTextColor    = input.color(color.white, title="Label Text Color")
+showLabelPrice    = input.bool(true, title="Show Price in Label")
+
+
+// Typical price
+typicalPrice       = (open + high + low + close) / 4
+typicalPriceVolume = typicalPrice * volume
+
+// Moving VWAP – Period 1
+vwapValue1 = math.sum(typicalPriceVolume, cumulativePeriod1) / math.sum(volume, cumulativePeriod1)
+
+// Moving VWAP – Period 2
+vwapValue2 = math.sum(typicalPriceVolume, cumulativePeriod2) / math.sum(volume, cumulativePeriod2)
+
+// Evaluate unconditionally every bar so both functions maintain correct history
+isCrossover  = ta.crossover(vwapValue1, vwapValue2)
+isCrossunder = ta.crossunder(vwapValue1, vwapValue2)
+
+// Persist color across bars; initialise from the first valid comparison
+var color lineColor = na
+lineColor := isCrossover  ? color.green :
+             isCrossunder ? color.red   :
+             nz(lineColor, vwapValue1 >= vwapValue2 ? color.green : color.red)
+
+// Single plotted line
+plot(vwapValue1, title="Moving VWAP", color=lineColor, linewidth=LineWidth)
+
+// ── End-of-chart label (last bar only) ──────────────────────────────────────
+// Draws a label at the right edge of the VWAP1 line showing user-defined text
+// and, optionally, the current VWAP1 price.  The label background matches the
+// current trend color so it stays visually consistent with the line.
+var label vwapLabel    = na
+var line  vwapDotLine  = na
+if barstate.islast
+    label.delete(vwapLabel)
+    line.delete(vwapDotLine)
+
+    // Dotted bridge: 5 bars from the last bar to the label anchor
+    vwapDotLine := line.new(
+         x1    = bar_index,
+         y1    = vwapValue1,
+         x2    = bar_index + 5,
+         y2    = vwapValue1,
+         color = lineColor,
+         style = line.style_solid,
+         width = LineWidth)
+
+    displayText = showLabelPrice
+         ? labelText + "\n" + str.tostring(vwapValue1, format.mintick)
+         : labelText
+    vwapLabel := label.new(
+         x      = bar_index + 5,
+         y      = vwapValue1,
+         text   = displayText,
+         style  = label.style_label_left,
+         color  = lineColor,
+         textcolor = labelTextColor,
+         size   = labelSize == "tiny"   ? size.tiny   :
+                  labelSize == "small"  ? size.small  :
+                  labelSize == "large"  ? size.large  :
+                  labelSize == "huge"   ? size.huge   :
+                  size.normal)
+
+// ── Horizontal crossover/crossunder lines projected to the right ─────────────
+// crossoverLines  : active lines still extending to the right
+// crossoverPrices : price level for each line (parallel array)
+// On each bar, any line whose level is touched by the bar's high/low range is
+// terminated at that bar.  New crosses are added and oldest evicted per maxCrossLines.
+var line[]  crossoverLines  = array.new_line()
+var float[] crossoverPrices = array.new_float()
+
+// Terminate lines that have been touched by price (iterate in reverse to allow removal)
+if array.size(crossoverLines) > 0
+    for i = array.size(crossoverLines) - 1 to 0
+        lvl = array.get(crossoverPrices, i)
+        if high >= lvl and low <= lvl
+            l = array.get(crossoverLines, i)
+            line.set_extend(l, extend.none)
+            line.set_x2(l, bar_index)
+            array.remove(crossoverLines, i)
+            array.remove(crossoverPrices, i)
+
+// Draw a new line on each crossover / crossunder
+if isCrossover or isCrossunder
+    crossColor = isCrossover ? color.rgb(76, 175, 79, 75) : color.rgb(255, 82, 82, 75)
+    crossPrice = vwapValue1[1] + (isCrossover ? lineOffset : -lineOffset)
+
+    newLine = line.new(
+         x1     = bar_index - 1,
+         y1     = crossPrice,
+         x2     = bar_index,
+         y2     = crossPrice,
+         extend = extend.right,
+         color  = crossColor,
+         style  = line.style_solid,
+         width  = 4)
+
+    array.push(crossoverLines,  newLine)
+    array.push(crossoverPrices, crossPrice)
+
+    // Evict oldest lines that exceed the user-defined limit
+    while array.size(crossoverLines) > maxCrossLines
+        line.delete(array.shift(crossoverLines))
+        array.shift(crossoverPrices)
