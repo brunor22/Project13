@@ -55,7 +55,7 @@ if barstate.islast
          x2    = bar_index + 5,
          y2    = vwapValue1,
          color = lineColor,
-         style = line.style_dotted,
+         style = line.style_solid,
          width = LineWidth)
 
     displayText = showLabelPrice
