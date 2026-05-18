@@ -1,0 +1,171 @@
+//@version=6
+indicator("Moving VWAP", overlay=true)
+
+// ── Moving VWAP inputs ────────────────────────────────────────────────────────
+cumulativePeriod1 = input.int(9,    title="VWAP Period 1",          minval=1)
+cumulativePeriod2 = input.int(18,   title="VWAP Period 2",          minval=1)
+LineWidth         = input.int(2,    title="Line Width",              minval=1)
+maxCrossLines     = input.int(1,    title="Crossover Lines to Show", minval=1, maxval=20)
+lineOffset        = input.float(0.0, title="Cross Line Price Offset", step=0.01)
+
+// ── Label inputs ──────────────────────────────────────────────────────────────
+labelText         = input.string("MVWAP",  title="Label Text")
+labelSize         = input.string("normal", title="Label Size",  options=["tiny", "small", "normal", "large", "huge"])
+labelTextColor    = input.color(color.white, title="Label Text Color")
+showLabelPrice    = input.bool(true, title="Show Price in Label")
+
+// ── Anchor VWAP inputs ────────────────────────────────────────────────────────
+useAnchor       = input.bool(false,                              title="Enable Anchor VWAP",  group="Anchor VWAP")
+anchorTime      = input.time(timestamp("2024-01-01 00:00 +0000"), title="Anchor Date/Time",   group="Anchor VWAP")
+anchorColor     = input.color(color.orange,                      title="Anchor VWAP Color",   group="Anchor VWAP")
+anchorLineWidth = input.int(2,                                   title="Anchor Line Width",   group="Anchor VWAP", minval=1)
+anchorLabelText = input.string("AVWAP",                          title="Anchor Label Text",   group="Anchor VWAP")
+
+// ── Typical price ─────────────────────────────────────────────────────────────
+typicalPrice       = (open + high + low + close) / 4
+typicalPriceVolume = typicalPrice * volume
+
+// ── Moving VWAP – Period 1 ────────────────────────────────────────────────────
+vwapValue1 = math.sum(typicalPriceVolume, cumulativePeriod1) / math.sum(volume, cumulativePeriod1)
+
+// ── Moving VWAP – Period 2 ────────────────────────────────────────────────────
+vwapValue2 = math.sum(typicalPriceVolume, cumulativePeriod2) / math.sum(volume, cumulativePeriod2)
+
+// ── Anchored VWAP ─────────────────────────────────────────────────────────────
+// Accumulates typicalPrice*volume and volume from the user-chosen anchor bar.
+// isAnchorBar detects the first bar at or after the anchor timestamp so the
+// running totals are reset exactly once per anchor change.
+var float anchoredCumTPV = 0.0
+var float anchoredCumVol = 0.0
+
+isAtOrAfterAnchor = time >= anchorTime
+isAnchorBar       = isAtOrAfterAnchor and (bar_index == 0 or not (time[1] >= anchorTime))
+
+if useAnchor
+    if isAnchorBar
+        anchoredCumTPV := typicalPriceVolume
+        anchoredCumVol := volume
+    else if isAtOrAfterAnchor
+        anchoredCumTPV += typicalPriceVolume
+        anchoredCumVol += volume
+
+anchoredVWAP = useAnchor and isAtOrAfterAnchor and anchoredCumVol != 0
+     ? anchoredCumTPV / anchoredCumVol
+     : na
+
+// ── Crossover/crossunder detection ────────────────────────────────────────────
+// Evaluated unconditionally every bar so both functions maintain correct history
+isCrossover  = ta.crossover(vwapValue1, vwapValue2)
+isCrossunder = ta.crossunder(vwapValue1, vwapValue2)
+
+// Persist color across bars; initialise from the first valid comparison
+var color lineColor = na
+lineColor := isCrossover  ? color.blue :
+             isCrossunder ? color.red   :
+             nz(lineColor, vwapValue1 >= vwapValue2 ? color.blue : color.red)
+
+// ── Plots ─────────────────────────────────────────────────────────────────────
+plot(vwapValue1,  title="Moving VWAP",   color=lineColor,   linewidth=LineWidth)
+plot(anchoredVWAP, title="Anchor VWAP", color=anchorColor, linewidth=anchorLineWidth)
+
+// ── End-of-chart labels (last bar only) ──────────────────────────────────────
+var label vwapLabel     = na
+var line  vwapDotLine   = na
+var label anchorLabel   = na
+var line  anchorDotLine = na
+
+if barstate.islast
+    label.delete(vwapLabel)
+    line.delete(vwapDotLine)
+    label.delete(anchorLabel)
+    line.delete(anchorDotLine)
+
+    // Resolve label size once
+    resolvedSize = labelSize == "tiny"  ? size.tiny  :
+                   labelSize == "small" ? size.small :
+                   labelSize == "large" ? size.large :
+                   labelSize == "huge"  ? size.huge  :
+                   size.normal
+
+    // Dotted bridge + label for Moving VWAP
+    vwapDotLine := line.new(
+         x1    = bar_index,
+         y1    = vwapValue1,
+         x2    = bar_index + 5,
+         y2    = vwapValue1,
+         color = color.black,
+         style = line.style_dotted,
+         width = 1)
+
+    displayText = showLabelPrice
+         ? labelText + "\n" + str.tostring(vwapValue1, format.mintick)
+         : labelText
+    vwapLabel := label.new(
+         x         = bar_index + 5,
+         y         = vwapValue1,
+         text      = displayText,
+         style     = label.style_label_left,
+         color     = lineColor,
+         textcolor = labelTextColor,
+         size      = resolvedSize)
+
+    // Dotted bridge + label for Anchored VWAP
+    if useAnchor and not na(anchoredVWAP)
+        anchorDotLine := line.new(
+             x1    = bar_index,
+             y1    = anchoredVWAP,
+             x2    = bar_index + 5,
+             y2    = anchoredVWAP,
+             color = color.black,
+             style = line.style_dotted,
+             width = 1)
+
+        anchorDisplayText = showLabelPrice
+             ? anchorLabelText + "\n" + str.tostring(anchoredVWAP, format.mintick)
+             : anchorLabelText
+        anchorLabel := label.new(
+             x         = bar_index + 5,
+             y         = anchoredVWAP,
+             text      = anchorDisplayText,
+             style     = label.style_label_left,
+             color     = anchorColor,
+             textcolor = labelTextColor,
+             size      = resolvedSize)
+
+// ── Horizontal crossover/crossunder lines projected to the right ─────────────
+var line[]  crossoverLines  = array.new_line()
+var float[] crossoverPrices = array.new_float()
+
+// Terminate lines that have been touched by price (iterate in reverse to allow removal)
+if array.size(crossoverLines) > 0
+    for i = array.size(crossoverLines) - 1 to 0
+        lvl = array.get(crossoverPrices, i)
+        if high >= lvl and low <= lvl
+            l = array.get(crossoverLines, i)
+            line.set_extend(l, extend.none)
+            line.set_x2(l, bar_index)
+            array.remove(crossoverLines, i)
+            array.remove(crossoverPrices, i)
+
+// Draw a new line on each crossover / crossunder
+if isCrossover or isCrossunder
+    crossColor = isCrossover ? color.rgb(76, 175, 79, 75) : color.rgb(255, 82, 82, 75)
+    crossPrice = vwapValue1[1] + (isCrossover ? lineOffset : -lineOffset)
+
+    newLine = line.new(
+         x1     = bar_index - 1,
+         y1     = crossPrice,
+         x2     = bar_index,
+         y2     = crossPrice,
+         extend = extend.right,
+         color  = crossColor,
+         style  = line.style_solid,
+         width  = 4)
+
+    array.push(crossoverLines,  newLine)
+    array.push(crossoverPrices, crossPrice)
+
+    // Evict oldest lines that exceed the user-defined limit
+    while array.size(crossoverLines) > maxCrossLines
+        line.delete(array.shift(crossoverLines))
+        array.shift(crossoverPrices)
