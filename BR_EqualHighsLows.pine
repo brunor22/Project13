@@ -1,0 +1,60 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © brunoromano22
+
+//@version=6
+indicator('BR - Equal Highs/Lows', overlay = true, max_labels_count = 500)
+
+Lookback1 = input.int(60,  "LookBack1")
+Lookback2 = input.int(120, "LookBack2")
+Lookback3 = input.int(240, "LookBack3")
+
+// Highest high for each lookback period
+highest1 = ta.highest(high, Lookback1)
+highest2 = ta.highest(high, Lookback2)
+highest3 = ta.highest(high, Lookback3)
+
+// Lowest low for each lookback period
+lowest1 = ta.lowest(low, Lookback1)
+lowest2 = ta.lowest(low, Lookback2)
+lowest3 = ta.lowest(low, Lookback3)
+
+// Conditions: all three highs/lows are equal (same price level dominates all lookback windows)
+isEqualHigh = highest1 == highest2 and highest2 == highest3
+isEqualLow  = lowest1  == lowest2  and lowest2  == lowest3
+
+// Track the last bar where a label was placed to avoid duplicates
+var int lastHighBar = na
+var int lastLowBar  = na
+
+// Place circle at the actual bar where the equal high occurred
+if isEqualHigh
+    // highestbars returns a non-positive offset; adding it to bar_index gives the target bar
+    highOffset = ta.highestbars(high, Lookback1)
+    targetBar  = bar_index + highOffset
+    if na(lastHighBar) or targetBar != lastHighBar
+        label.new(
+             x     = targetBar,
+             y     = highest1,
+             xloc  = xloc.bar_index,
+             yloc  = yloc.price,
+             style = label.style_circle,
+             color = color.new(color.green, 0),
+             size  = size.normal,
+             text  = "")
+        lastHighBar := targetBar
+
+// Place circle at the actual bar where the equal low occurred
+if isEqualLow
+    lowOffset = ta.lowestbars(low, Lookback1)
+    targetBar = bar_index + lowOffset
+    if na(lastLowBar) or targetBar != lastLowBar
+        label.new(
+             x     = targetBar,
+             y     = lowest1,
+             xloc  = xloc.bar_index,
+             yloc  = yloc.price,
+             style = label.style_circle,
+             color = color.new(color.red, 0),
+             size  = size.normal,
+             text  = "")
+        lastLowBar := targetBar
