@@ -1,6 +1,6 @@
 //@version=6
 indicator("Fibonacci Retracement", overlay=true,
-     max_lines_count=100, max_labels_count=50, max_linefills_count=10)
+     max_lines_count=100, max_labels_count=50)
 
 // ── Date Range ─────────────────────────────────────────────────────────────────
 startTime   = input.time(defval=timestamp("2026-05-22 09:30"), title="Start Date/Time", group="Range")
@@ -91,22 +91,22 @@ if barstate.islast and not na(rangeHigh) and not na(rangeLow)
     array.clear(fillAnchors)
     array.clear(vertLines)
 
-    diff         = rangeHigh - rangeLow
+    diff          = rangeHigh - rangeLow
     highBeforeLow = rangeHighTime < rangeLowTime
-    pad          = diff * 0.15
-    yTop         = rangeHigh + pad
-    yBottom      = rangeLow  - pad
+    pad           = diff * 0.15
+    yTop          = rangeHigh + pad
+    yBottom       = rangeLow  - pad
 
     // Vertical dotted line at the range-high bar
     array.push(vertLines, line.new(
          x1=rangeHighTime, y1=yTop, x2=rangeHighTime, y2=yBottom,
-         xloc=xloc.bar_time, color=color.new(color.white, 40),
+         xloc=xloc.bar_time, color=color.new(color.black, 0),
          width=1, style=line.style_dotted))
 
     // Vertical dotted line at the range-low bar
     array.push(vertLines, line.new(
          x1=rangeLowTime, y1=yTop, x2=rangeLowTime, y2=yBottom,
-         xloc=xloc.bar_time, color=color.new(color.white, 40),
+         xloc=xloc.bar_time, color=color.new(color.black, 0),
          width=1, style=line.style_dotted))
 
     // User-configured levels
