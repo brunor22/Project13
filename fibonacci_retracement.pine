@@ -44,26 +44,35 @@ cols   = array.from(l0_col,  l1_col,  l2_col,  l3_col,  l4_col,  l5_col,  l6_col
 extDir = extendRight ? extend.right : extend.none
 
 // ── Range Detection ────────────────────────────────────────────────────────────
-var float rangeHigh = na
-var float rangeLow  = na
-var int   lastStart = na
-var int   lastEnd   = na
+var float rangeHigh     = na
+var float rangeLow      = na
+var int   rangeHighTime = na
+var int   rangeLowTime  = na
+var int   lastStart     = na
+var int   lastEnd       = na
 
 if startTime != lastStart or endTime != lastEnd
-    rangeHigh := na
-    rangeLow  := na
-    lastStart := startTime
-    lastEnd   := endTime
+    rangeHigh     := na
+    rangeLow      := na
+    rangeHighTime := na
+    rangeLowTime  := na
+    lastStart     := startTime
+    lastEnd       := endTime
 
 if time >= startTime and time <= endTime
-    rangeHigh := na(rangeHigh) ? high : math.max(rangeHigh, high)
-    rangeLow  := na(rangeLow)  ? low  : math.min(rangeLow,  low)
+    if na(rangeHigh) or high > rangeHigh
+        rangeHigh     := high
+        rangeHighTime := time
+    if na(rangeLow) or low < rangeLow
+        rangeLow     := low
+        rangeLowTime := time
 
 // ── Drawing ────────────────────────────────────────────────────────────────────
 var fibLines    = array.new_line()
 var fibLabels   = array.new_label()
 var fillAnchors = array.new_line()
 var fibFills    = array.new_linefill()
+var vertLines   = array.new_line()
 
 if barstate.islast and not na(rangeHigh) and not na(rangeLow)
     for ln in fibLines
@@ -74,12 +83,30 @@ if barstate.islast and not na(rangeHigh) and not na(rangeLow)
         linefill.delete(fl)
     for ln in fillAnchors
         line.delete(ln)
+    for ln in vertLines
+        line.delete(ln)
     array.clear(fibLines)
     array.clear(fibLabels)
     array.clear(fibFills)
     array.clear(fillAnchors)
+    array.clear(vertLines)
 
-    diff = rangeHigh - rangeLow
+    diff    = rangeHigh - rangeLow
+    pad     = diff * 0.15
+    yTop    = rangeHigh + pad
+    yBottom = rangeLow  - pad
+
+    // Vertical dotted line at the range-high bar
+    array.push(vertLines, line.new(
+         x1=rangeHighTime, y1=yTop, x2=rangeHighTime, y2=yBottom,
+         xloc=xloc.bar_time, color=color.new(color.white, 40),
+         width=1, style=line.style_dotted))
+
+    // Vertical dotted line at the range-low bar
+    array.push(vertLines, line.new(
+         x1=rangeLowTime, y1=yTop, x2=rangeLowTime, y2=yBottom,
+         xloc=xloc.bar_time, color=color.new(color.white, 40),
+         width=1, style=line.style_dotted))
 
     // User-configured levels
     for i = 0 to array.size(levels) - 1
@@ -95,9 +122,9 @@ if barstate.islast and not na(rangeHigh) and not na(rangeLow)
 
             array.push(fibLabels, label.new(
                  x=endTime, y=price,
-                 text=str.tostring(lvl * 100, "0.###") + "% — " + str.tostring(price, format.mintick),
+                 text=str.tostring(lvl * 100, "0.###") + "%",
                  xloc=xloc.bar_time, color=color.new(col, 85), textcolor=col,
-                 style=label.style_label_left, size=size.small))
+                 style=label.style_none, size=size.small))
 
     // ── Hardcoded fills ────────────────────────────────────────────────────────
     // Fill: 50% – 61.8% (golden zone)
