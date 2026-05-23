@@ -1,0 +1,64 @@
+//@version=6
+indicator("Fibonacci Retracement", overlay=true, max_lines_count=50, max_labels_count=50)
+
+// ── Inputs ─────────────────────────────────────────────────────────────────────
+startTime = input.time(defval=timestamp("2024-01-01 00:00"), title="Start Date/Time")
+endTime   = input.time(defval=timestamp("2024-12-31 23:59"), title="End Date/Time")
+
+// ── Fibonacci Configuration ────────────────────────────────────────────────────
+var levels = array.from(0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0)
+var colors = array.from(
+     color.new(color.gray,   0),
+     color.new(color.blue,   0),
+     color.new(color.teal,   0),
+     color.new(color.yellow, 0),
+     color.new(color.orange, 0),
+     color.new(color.red,    0),
+     color.new(color.purple, 0))
+
+// ── Range Detection ────────────────────────────────────────────────────────────
+var float rangeHigh = na
+var float rangeLow  = na
+var int   lastStart = na
+var int   lastEnd   = na
+
+// Reset when inputs change so the range recalculates cleanly
+if startTime != lastStart or endTime != lastEnd
+    rangeHigh := na
+    rangeLow  := na
+    lastStart := startTime
+    lastEnd   := endTime
+
+if time >= startTime and time <= endTime
+    rangeHigh := na(rangeHigh) ? high : math.max(rangeHigh, high)
+    rangeLow  := na(rangeLow)  ? low  : math.min(rangeLow,  low)
+
+// ── Drawing ────────────────────────────────────────────────────────────────────
+var fibLines  = array.new_line()
+var fibLabels = array.new_label()
+
+if barstate.islast and not na(rangeHigh) and not na(rangeLow)
+    // Clear previous drawings before redrawing
+    for ln in fibLines
+        line.delete(ln)
+    for lb in fibLabels
+        label.delete(lb)
+    array.clear(fibLines)
+    array.clear(fibLabels)
+
+    diff = rangeHigh - rangeLow
+
+    for i = 0 to array.size(levels) - 1
+        lvl   = array.get(levels, i)
+        price = rangeLow + diff * lvl
+        col   = array.get(colors, i)
+
+        array.push(fibLines, line.new(
+             x1=startTime, y1=price, x2=endTime, y2=price,
+             xloc=xloc.bar_time, color=col, width=1, style=line.style_dashed))
+
+        array.push(fibLabels, label.new(
+             x=endTime, y=price,
+             text=str.tostring(lvl * 100, "0.###") + "% — " + str.tostring(price, format.mintick),
+             xloc=xloc.bar_time, color=color.new(col, 85), textcolor=col,
+             style=label.style_label_left, size=size.small))
