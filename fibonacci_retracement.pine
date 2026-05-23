@@ -113,7 +113,7 @@ if barstate.islast and not na(rangeHigh) and not na(rangeLow)
     for i = 0 to array.size(levels) - 1
         if array.get(shows, i)
             lvl   = array.get(levels, i)
-            price = highBeforeLow ? rangeHigh - diff * lvl : rangeLow + diff * lvl
+            price = highBeforeLow ? rangeLow + diff * lvl : rangeHigh - diff * lvl
             col   = array.get(cols, i)
 
             array.push(fibLines, line.new(
@@ -129,8 +129,8 @@ if barstate.islast and not na(rangeHigh) and not na(rangeLow)
 
     // ── Hardcoded fills ────────────────────────────────────────────────────────
     // Fill: 50% – 61.8% (golden zone)
-    p500 = highBeforeLow ? rangeHigh - diff * 0.500 : rangeLow + diff * 0.500
-    p618 = highBeforeLow ? rangeHigh - diff * 0.618 : rangeLow + diff * 0.618
+    p500 = highBeforeLow ? rangeLow + diff * 0.500 : rangeHigh - diff * 0.500
+    p618 = highBeforeLow ? rangeLow + diff * 0.618 : rangeHigh - diff * 0.618
     fa1  = line.new(startTime, p500, endTime, p500, xloc=xloc.bar_time, color=color.new(color.green, 100), extend=extDir)
     fa2  = line.new(startTime, p618, endTime, p618, xloc=xloc.bar_time, color=color.new(color.green, 100), extend=extDir)
     array.push(fillAnchors, fa1)
@@ -138,8 +138,8 @@ if barstate.islast and not na(rangeHigh) and not na(rangeLow)
     array.push(fibFills, linefill.new(fa1, fa2, color.new(color.green, 95)))
 
     // Fill: 20% – 25%
-    p20 = highBeforeLow ? rangeHigh - diff * 0.20 : rangeLow + diff * 0.20
-    p25 = highBeforeLow ? rangeHigh - diff * 0.25 : rangeLow + diff * 0.25
+    p20 = highBeforeLow ? rangeLow + diff * 0.20 : rangeHigh - diff * 0.20
+    p25 = highBeforeLow ? rangeLow + diff * 0.25 : rangeHigh - diff * 0.25
     fa3 = line.new(startTime, p20, endTime, p20, xloc=xloc.bar_time, color=color.new(color.blue, 100), extend=extDir)
     fa4 = line.new(startTime, p25, endTime, p25, xloc=xloc.bar_time, color=color.new(color.blue, 100), extend=extDir)
     array.push(fillAnchors, fa3)
