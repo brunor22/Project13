@@ -3,8 +3,9 @@ indicator("Fibonacci Retracement", overlay=true,
      max_lines_count=100, max_labels_count=50, max_linefills_count=10)
 
 // ── Date Range ─────────────────────────────────────────────────────────────────
-startTime = input.time(defval=timestamp("2024-01-01 00:00"), title="Start Date/Time", group="Range")
-endTime   = input.time(defval=timestamp("2024-12-31 23:59"), title="End Date/Time",   group="Range")
+startTime   = input.time(defval=timestamp("2026-05-22 09:30"), title="Start Date/Time", group="Range")
+endTime     = input.time(defval=timestamp("2026-05-22 10:30"), title="End Date/Time",   group="Range")
+extendRight = input.bool(false,                                title="Extend Right",    group="Range")
 
 // ── Fibonacci Level Inputs ─────────────────────────────────────────────────────
 l0_val  = input.float(0.0,   title="Value", inline="l0", group="Level 1 (0%)")
@@ -39,6 +40,8 @@ l6_col  = input.color(color.purple,         title="",    inline="l6", group="Lev
 levels = array.from(l0_val,  l1_val,  l2_val,  l3_val,  l4_val,  l5_val,  l6_val)
 shows  = array.from(l0_show, l1_show, l2_show, l3_show, l4_show, l5_show, l6_show)
 cols   = array.from(l0_col,  l1_col,  l2_col,  l3_col,  l4_col,  l5_col,  l6_col)
+
+extDir = extendRight ? extend.right : extend.none
 
 // ── Range Detection ────────────────────────────────────────────────────────────
 var float rangeHigh = na
@@ -87,7 +90,8 @@ if barstate.islast and not na(rangeHigh) and not na(rangeLow)
 
             array.push(fibLines, line.new(
                  x1=startTime, y1=price, x2=endTime, y2=price,
-                 xloc=xloc.bar_time, color=col, width=1, style=line.style_dashed))
+                 xloc=xloc.bar_time, color=col, width=1, style=line.style_dotted,
+                 extend=extDir))
 
             array.push(fibLabels, label.new(
                  x=endTime, y=price,
@@ -98,18 +102,18 @@ if barstate.islast and not na(rangeHigh) and not na(rangeLow)
     // ── Hardcoded fills ────────────────────────────────────────────────────────
     // Fill: 50% – 61.8% (golden zone)
     fa1 = line.new(startTime, rangeLow + diff * 0.500, endTime, rangeLow + diff * 0.500,
-         xloc=xloc.bar_time, color=color.new(color.green, 100))
+         xloc=xloc.bar_time, color=color.new(color.green, 100), extend=extDir)
     fa2 = line.new(startTime, rangeLow + diff * 0.618, endTime, rangeLow + diff * 0.618,
-         xloc=xloc.bar_time, color=color.new(color.green, 100))
+         xloc=xloc.bar_time, color=color.new(color.green, 100), extend=extDir)
     array.push(fillAnchors, fa1)
     array.push(fillAnchors, fa2)
-    array.push(fibFills, linefill.new(fa1, fa2, color.new(color.green, 75)))
+    array.push(fibFills, linefill.new(fa1, fa2, color.new(color.green, 95)))
 
     // Fill: 20% – 25%
     fa3 = line.new(startTime, rangeLow + diff * 0.20, endTime, rangeLow + diff * 0.20,
-         xloc=xloc.bar_time, color=color.new(color.blue, 100))
+         xloc=xloc.bar_time, color=color.new(color.blue, 100), extend=extDir)
     fa4 = line.new(startTime, rangeLow + diff * 0.25, endTime, rangeLow + diff * 0.25,
-         xloc=xloc.bar_time, color=color.new(color.blue, 100))
+         xloc=xloc.bar_time, color=color.new(color.blue, 100), extend=extDir)
     array.push(fillAnchors, fa3)
     array.push(fillAnchors, fa4)
-    array.push(fibFills, linefill.new(fa3, fa4, color.new(color.blue, 75)))
+    array.push(fibFills, linefill.new(fa3, fa4, color.new(color.blue, 95)))
