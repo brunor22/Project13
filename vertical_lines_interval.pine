@@ -1,16 +1,26 @@
 //@version=5
-indicator("Vertical Lines Every X Minutes", overlay=false)
+indicator("Hourly & 30-Min Interval Lines", overlay=false)
 
-interval_minutes = input.int(60, title="Interval (minutes)", minval=1)
-line_col         = input.color(color.new(color.blue, 0), title="Line Color")
+hour_col     = input.color(color.new(color.blue, 0),  title="Hour Line Color")
+half_col     = input.color(color.new(color.gray, 0),  title="30-Min Line Color")
 
-bar_min     = hour(time, syminfo.timezone) * 60 + minute(time, syminfo.timezone)
-is_boundary = bar_min / interval_minutes != bar_min[1] / interval_minutes
+bar_min      = hour(time, syminfo.timezone) * 60 + minute(time, syminfo.timezone)
+prev_bar_min = hour(time[1], syminfo.timezone) * 60 + minute(time[1], syminfo.timezone)
 
-var line vline = na
-if is_boundary
-    line.delete(vline)
-    vline := line.new(bar_index, 1, bar_index, -1, xloc=xloc.bar_index,
-         extend=extend.both, color=line_col, style=line.style_dotted, width=1)
+is_hour      = bar_min % 60 == 0 and bar_min != prev_bar_min
+is_half_hour = bar_min % 30 == 0 and not is_hour and bar_min != prev_bar_min
+
+var line hour_line = na
+var line half_line = na
+
+if is_hour
+    line.delete(hour_line)
+    hour_line := line.new(bar_index, 1, bar_index, -1, xloc=xloc.bar_index,
+         extend=extend.both, color=hour_col, style=line.style_solid, width=2)
+
+if is_half_hour
+    line.delete(half_line)
+    half_line := line.new(bar_index, 1, bar_index, -1, xloc=xloc.bar_index,
+         extend=extend.both, color=half_col, style=line.style_dotted, width=1)
 
 plot(0, title="Baseline", color=color.new(color.gray, 80), display=display.pane)
