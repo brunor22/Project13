@@ -5,10 +5,12 @@ interval_minutes = input.int(60, title="Interval (minutes)", minval=1)
 line_col         = input.color(color.new(color.blue, 0), title="Line Color")
 
 bar_min     = hour(time, syminfo.timezone) * 60 + minute(time, syminfo.timezone)
-is_boundary = bar_min % interval_minutes == 0
+is_boundary = bar_min / interval_minutes != bar_min[1] / interval_minutes
 
+var line vline = na
 if is_boundary
-    line.new(bar_index, 1, bar_index, -1, xloc=xloc.bar_index,
+    line.delete(vline)
+    vline := line.new(bar_index, 1, bar_index, -1, xloc=xloc.bar_index,
          extend=extend.both, color=line_col, style=line.style_dotted, width=1)
 
 plot(0, title="Baseline", color=color.new(color.gray, 80), display=display.pane)
