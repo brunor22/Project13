@@ -1,40 +1,14 @@
 //@version=5
 indicator("Vertical Lines Every X Minutes", overlay=false)
 
-// ── Inputs ────────────────────────────────────────────────────────────────────
-interval_minutes = input.int(60,  title="Interval (minutes)", minval=1,
-     tooltip="Draw a vertical line every X minutes")
-line_col  = input.color(color.new(color.blue, 0), title="Line Color")
-line_w    = input.int(1, title="Line Width", minval=1, maxval=4,
-     options=[1, 2, 3, 4])
-show_band = input.bool(false, title="Show Background Band")
+interval_minutes = input.int(60, title="Interval (minutes)", minval=1)
+line_col         = input.color(color.new(color.blue, 0), title="Line Color")
 
-// ── Logic ─────────────────────────────────────────────────────────────────────
-// Minutes elapsed since midnight in the exchange timezone
-bar_min = hour(time, syminfo.timezone) * 60 + minute(time, syminfo.timezone)
-
-// True on the first bar whose minute timestamp falls on an interval boundary
+bar_min     = hour(time, syminfo.timezone) * 60 + minute(time, syminfo.timezone)
 is_boundary = bar_min % interval_minutes == 0
 
-// ── Drawing ───────────────────────────────────────────────────────────────────
-// Vertical line via line.new spanning a large y-range in the sub-pane
 if is_boundary
-    line.new(
-         x1    = bar_index,
-         y1    = 1,
-         x2    = bar_index,
-         y2    = -1,
-         xloc  = xloc.bar_index,
-         extend = extend.both,   // stretch the line to fill the full pane height
-         color  = line_col,
-         style  = line.style_solid,
-         width  = line_w
-         )
+    line.new(bar_index, 1, bar_index, -1, xloc=xloc.bar_index,
+         extend=extend.both, color=line_col, style=line.style_dotted, width=1)
 
-// Optional subtle background highlight on boundary bars
-bgcolor(show_band and is_boundary ? color.new(line_col, 80) : na,
-     title="Boundary Band")
-
-// Baseline so the sub-pane has a reference and a visible height
-plot(0, title="Baseline", color=color.new(color.gray, 80),
-     display=display.pane)
+plot(0, title="Baseline", color=color.new(color.gray, 80), display=display.pane)
