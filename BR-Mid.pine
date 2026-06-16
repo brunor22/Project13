@@ -1,0 +1,151 @@
+//@version=6
+indicator("BR - Mid", overlay=true, max_boxes_count=500, max_labels_count=500)
+
+AUTO_TIMEFRAME_TOOLTIP = "When the Auto option is selected, the timeframe of the indicator is chosen automatically based on the chart timeframe..."
+
+HLR = "High/Low Range"
+TR = "True Range"
+HAR = "Heikin Ashi Range"
+
+DEFAULT_RESOLUTION = "1M"
+DEFAULT_COLOR_GROWTH = color.rgb(0, 150, 136, 80)
+DEFAULT_COLOR_FALL = color.rgb(244, 67, 54, 80)
+DEFAULT_CALCULATION_METHOD = HLR
+DEFAULT_AUTO_RESOLUTION = true
+
+var prevBarIndex = bar_index
+var box  prevBox  = na
+var line prevLine = na
+var label prevLabel = na
+
+// Volume accumulation per period (volume profile delta)
+var float currDeltaAccum  = 0.0
+var float currTotalVol    = 0.0
+var float savedDelta      = 0.0
+var float savedTotalVol   = 0.0
+
+formatVol(float vol) =>
+    if vol >= 1000000000
+        str.tostring(vol / 1000000000, "#.##") + "B"
+    else if vol >= 1000000
+        str.tostring(vol / 1000000, "#.##") + "M"
+    else if vol >= 1000
+        str.tostring(vol / 1000, "#.##") + "K"
+    else
+        str.tostring(vol, "#.##")
+
+drawBoxOnly(left, right, top, bottom, diff, growthColorInput, fallColorInput, borderGrowth, borderFall) =>
+    b = box.new(left, top, right, bottom)
+    if diff < 0
+        box.set_border_color(b, borderFall)
+        box.set_bgcolor(b, fallColorInput)
+    else
+        box.set_border_color(b, borderGrowth)
+        box.set_bgcolor(b, growthColorInput)
+    b
+
+drawMidLine(left, right, top, bottom) =>
+    mid = ((top - bottom) / 2) + bottom
+    line.new(left, mid, right, mid, xloc.bar_index, extend=extend.none, color=color.gray, style=line.style_dashed)
+
+drawVolumeLabel(int left, int right, float top, float delta, float totalVol, float diff) =>
+    midX = int(math.round((left + right) / 2))
+    deltaSign = delta >= 0 ? "+" : "-"
+    txt = "Δ " + deltaSign + formatVol(math.abs(delta)) + "\nVol " + formatVol(totalVol)
+    lblColor = delta >= 0 ? color.rgb(0, 150, 136, 20) : color.rgb(244, 67, 54, 20)
+    label.new(midX, top, txt, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_down, color=lblColor, textcolor=color.white, size=size.small)
+
+selectAutoTimeframe() =>
+     timeframe.isseconds ? '120':
+     timeframe.isminutes ? '1440':
+     timeframe.isdaily ? 'W':
+     timeframe.isweekly ? 'M':
+     timeframe.ismonthly and timeframe.multiplier < 3 ? '3M': '12M'
+
+selectTimeFrameFromInput(tf) =>
+     syminfo.session == session.extended and tf == '1D' ? '1440' : tf
+
+autoTimeframeInput = input(DEFAULT_AUTO_RESOLUTION, title="AutoTimeframe", tooltip=AUTO_TIMEFRAME_TOOLTIP)
+timeframeInput = input.timeframe(DEFAULT_RESOLUTION, title="Timeframe")
+timeframe = autoTimeframeInput ? selectAutoTimeframe() : selectTimeFrameFromInput(timeframeInput)
+
+calculationMethodInput = input.string(DEFAULT_CALCULATION_METHOD, "Calculation", options = [HLR, TR, HAR])
+
+groupName = "Border and fill colors"
+growthBorderColorInput = input(color.new(DEFAULT_COLOR_GROWTH, 80), title="Growth Body", inline="growth", group = groupName)
+growthColorInput       = input(DEFAULT_COLOR_GROWTH, title="", inline="growth", group = groupName)
+fallBorderColorInput   = input(color.new(DEFAULT_COLOR_FALL, 80), title="Fall Body", inline="fall", group = groupName)
+fallColorInput         = input(DEFAULT_COLOR_FALL, title="", inline="fall", group = groupName)
+
+type OHLC
+    float o
+    float h
+    float l
+    float c
+    float prevC
+
+makeOHLC(int bb = 0) =>
+    OHLC.new(open[bb], high[bb], low[bb], close[bb], close[bb+1])
+
+[bar0, bar1] = request.security(syminfo.tickerid, timeframe, [makeOHLC(0), makeOHLC(1)], lookahead=barmerge.lookahead_on)
+
+isNewPeriod = ta.change(time(timeframe)) != 0
+
+// Volume profile delta: distribute each bar's volume based on where price
+// closed relative to the bar's range (high-low).
+//   close at high  → 100% buying volume  → delta = +volume
+//   close at low   → 100% selling volume → delta = -volume
+//   close at mid   → 50/50 split         → delta = 0
+// For zero-range bars (high == low), fall back to bar direction.
+barVol   = nz(volume)
+barRange = high - low
+barDelta = barRange > 0 ? barVol * (2 * close - high - low) / barRange : (close >= open ? barVol : -barVol)
+
+if isNewPeriod
+    savedDelta    := currDeltaAccum
+    savedTotalVol := currTotalVol
+    currDeltaAccum := barDelta
+    currTotalVol   := barVol
+else
+    currDeltaAccum += barDelta
+    currTotalVol   += barVol
+
+drawCurrent = barstate.islast and not isNewPeriod
+sec = drawCurrent ? bar0 : bar1
+sec := na(sec) ? OHLC.new() : sec
+diff = sec.c - sec.o
+left = prevBarIndex
+right = drawCurrent ? bar_index : bar_index - 1
+
+[ashiHigh, ashiLow] = request.security(ticker.heikinashi(syminfo.tickerid), timeframe, [high, low])
+float top = na
+float bottom = na
+
+if calculationMethodInput == HLR
+    top := sec.h
+    bottom := sec.l
+else if calculationMethodInput == TR
+    top := math.max(sec.h, sec.prevC)
+    bottom := math.min(sec.l, sec.prevC)
+else if calculationMethodInput == HAR
+    top := ashiHigh
+    bottom := ashiLow
+
+if isNewPeriod
+    prevBarIndex := bar_index
+    _ = drawBoxOnly(left, right, top, bottom, diff, growthColorInput, fallColorInput, growthBorderColorInput, fallBorderColorInput)
+    _ = drawMidLine(left, right, top, bottom)
+    _ = drawVolumeLabel(left, right, top, savedDelta, savedTotalVol, diff)
+
+if barstate.islast
+    if isNewPeriod
+        prevBox := na
+        line.delete(prevLine)
+        label.delete(prevLabel)
+    else
+        box.delete(prevBox)
+        line.delete(prevLine)
+        label.delete(prevLabel)
+        prevBox   := drawBoxOnly(left, right, top, bottom, diff, growthColorInput, fallColorInput, growthBorderColorInput, fallBorderColorInput)
+        prevLine  := drawMidLine(left, right, top, bottom)
+        prevLabel := drawVolumeLabel(left, right, top, currDeltaAccum, currTotalVol, diff)
